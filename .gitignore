@@ -1,0 +1,7 @@
+.DS_Store
+# Captured WordPress reference and Hugo build output
+.reference/
+site/.reference/
+site/public/
+site/resources/
+site/.hugo_build.lock
