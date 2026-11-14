@@ -1,0 +1,7 @@
+{{ define "bodyclass" }}error404{{ end }}
+{{ define "main" }}
+<div class="wrap">
+  <h1 class="plain-page__title">Page not found</h1>
+  <p class="plain-page__line">That page is not here. Try <a href="{{ partial "url.html" "/" }}">Home</a>, <a href="{{ partial "url.html" "/how-it-works/" }}">How it works</a>, <a href="{{ partial "url.html" "/about/" }}">About</a>, <a href="{{ partial "url.html" "/resources/" }}">Resources</a> or <a href="{{ partial "url.html" "/members/" }}">For members</a>.</p>
+</div>
+{{ end }}

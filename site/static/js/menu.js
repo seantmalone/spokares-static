@@ -1,0 +1,74 @@
+/*
+ * The phone menu (under 1020px): the "Menu" button opens the links under the
+ * bar and reads "Close" while they are open. As on the WordPress site:
+ * opening moves focus to the first link and Tab stays inside the menu (the
+ * button, the links, Join); Escape closes it and puts focus back on the
+ * button; the page does not scroll while it is open; choosing a link, clicking
+ * outside the menu or widening the window past 1020px closes it. From 1020px
+ * up site.css shows the links in the bar and hides the button. Without
+ * JavaScript site.css shows the links in a row under the bar instead.
+ */
+(function () {
+  var nav = document.querySelector('.nav');
+  if (!nav) return;
+  var button = nav.querySelector('.nav__toggle');
+  var list = nav.querySelector('.nav__list');
+  var wide = window.matchMedia('(min-width: 1020px)');
+
+  function links() {
+    return Array.prototype.slice.call(list.querySelectorAll('a[href]'));
+  }
+
+  function isOpen() {
+    return nav.classList.contains('is-open');
+  }
+
+  function set(open) {
+    nav.classList.toggle('is-open', open);
+    document.documentElement.classList.toggle('nav-open', open);
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    button.textContent = open ? 'Close' : 'Menu';
+  }
+
+  button.addEventListener('click', function () {
+    var open = !isOpen();
+    set(open);
+    if (open) links()[0].focus();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!isOpen()) return;
+    if (e.key === 'Escape') {
+      set(false);
+      button.focus();
+      return;
+    }
+    if (e.key === 'Tab') {
+      var all = links();
+      var first = button;
+      var last = all[all.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  });
+
+  nav.addEventListener('click', function (e) {
+    if (e.target.closest('a')) set(false);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (isOpen() && !nav.contains(e.target)) set(false);
+  });
+
+  wide.addEventListener('change', function () {
+    var hadFocus = document.activeElement === button;
+    set(false);
+    // The button is hidden from 1020px up; keep focus on something visible.
+    if (hadFocus && wide.matches) links()[0].focus();
+  });
+})();

@@ -1,0 +1,25 @@
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__bar">
+      {{ partial "brand.html" (dict "variant" "footer") }}
+      <div class="footer__nav">
+        {{- /* One unbroken run, as WordPress printed it: the links are inline boxes, so
+               any whitespace between the tags would show as a space. */ -}}
+        <nav class="footer__links" aria-label="Footer"><ul>
+          {{- range (slice
+                (dict "label" "How it works" "url" "/how-it-works/")
+                (dict "label" "About ARES & ACS" "url" "/about/")
+                (dict "label" "Resources" "url" "/resources/")
+                (dict "label" "For Members" "url" "/members/")
+                (dict "label" "Contact" "url" "/about/#contact")) -}}
+          <li><a href="{{ partial "url.html" .url }}">{{ .label }}</a></li>
+          {{- end -}}
+        </ul></nav>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p class="footer__emergency">Volunteers, not first responders. In an emergency, call 911.</p>
+      <p class="footer__copy">© Spokane County ARES-ACS</p>
+    </div>
+  </div>
+</footer>

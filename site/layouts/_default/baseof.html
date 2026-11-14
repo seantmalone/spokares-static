@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+{{ partial "head.html" . }}
+</head>
+<body class="{{ block "bodyclass" . }}page{{ end }}">
+<a class="skip-link screen-reader-text" href="#main">Skip to content</a>
+{{- /* .wp-site-blocks is the theme's page column (site.css section 4): it keeps the
+       footer at the bottom of the window on short pages. main's class comes from
+       the page's front matter (main_class), as WordPress templates set it. */}}
+{{- $mainClass := .Params.main_class }}
+{{- if eq .Kind "404" }}{{ $mainClass = "bg-day plain-page" }}{{ end }}
+<div class="wp-site-blocks">
+{{ partial "header.html" . }}
+<main id="main"{{ with $mainClass }} class="{{ . }}"{{ end }}>
+{{ block "main" . }}{{ end }}
+</main>
+{{ partial "footer.html" . }}
+</div>
+</body>
+</html>

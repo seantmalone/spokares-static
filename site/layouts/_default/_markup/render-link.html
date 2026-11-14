@@ -1,0 +1,4 @@
+{{- $d := .Destination -}}
+{{- if strings.HasPrefix $d "/" }}{{ $d = partial "url.html" $d }}{{ end -}}
+<a href="{{ $d | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text }}</a>
+{{- /* no trailing newline */ -}}

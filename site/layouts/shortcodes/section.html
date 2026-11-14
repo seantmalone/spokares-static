@@ -1,0 +1,7 @@
+{{- /* A designed section wrapper around Markdown (porting rule 4):
+       {{< section id="nets" class="bg-dawn how-ch" >}} …Markdown… {{< /section >}}
+       renders <section id class><div class="wrap">…</div></section>.
+       Pass inner="…" to replace the inner wrapper's class (default "wrap") when the
+       reference's inner group carries more classes, e.g. inner="wrap how-ch__grid". */ -}}
+<section{{ with .Get "id" }} id="{{ . }}"{{ end }} class="{{ .Get "class" }}"><div class="{{ or (.Get "inner") "wrap" }}">{{ .Inner | .Page.RenderString (dict "display" "block") }}</div></section>
+{{- /* no trailing newline */ -}}

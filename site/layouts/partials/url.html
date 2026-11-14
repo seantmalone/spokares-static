@@ -1,0 +1,3 @@
+{{- /* Turns a root-relative address ("/about/#contact") into one that works under
+       the site's base path (e.g. "/spokares-static/about/#contact"). */ -}}
+{{- return (printf "%s%s" (strings.TrimSuffix "/" site.Home.RelPermalink) .) -}}

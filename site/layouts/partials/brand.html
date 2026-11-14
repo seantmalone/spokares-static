@@ -1,0 +1,9 @@
+{{- /* The seal lockup. (dict "variant" "header") in the masthead, (dict "variant" "footer") in the footer.
+       Markup as the theme's spokares-theme/brand block printed it. */ -}}
+{{- $s92 := partial "url.html" "/img/seal-ares-acs-92.png" -}}
+{{- $s138 := partial "url.html" "/img/seal-ares-acs-138.png" -}}
+{{- if eq .variant "header" -}}
+<a class="brand" href="{{ partial "url.html" "/" }}"><img src="{{ $s92 }}" srcset="{{ $s92 }} 92w, {{ $s138 }} 138w" sizes="46px" alt="" width="46" height="46" decoding="async"><span class="brand__name"><span>Spokane County</span> <strong>ARES-ACS</strong></span></a>
+{{- else -}}
+<a class="footer__seal" href="{{ partial "url.html" "/" }}"><img src="{{ $s92 }}" srcset="{{ $s92 }} 92w, {{ $s138 }} 138w" sizes="auto, 44px" alt="Spokane County ARES-ACS home" width="44" height="44" loading="lazy" decoding="async"></a>
+{{- end -}}

@@ -1,0 +1,26 @@
+<header class="site-header">
+<div class="masthead">
+  <div class="wrap masthead__bar">
+    {{ partial "brand.html" (dict "variant" "header") }}
+    <div class="buttons masthead__actions">
+      <a class="btn btn--red masthead__join" href="{{ partial "url.html" "/#join" }}">Join the team</a>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <ul class="nav__list" id="nav-menu">
+        {{- $here := .RelPermalink -}}
+        {{- range (slice
+              (dict "label" "Home" "url" "/")
+              (dict "label" "How it works" "url" "/how-it-works/")
+              (dict "label" "About ARES & ACS" "url" "/about/")
+              (dict "label" "Resources" "url" "/resources/")
+              (dict "label" "For Members" "url" "/members/")) }}
+        {{- $u := partial "url.html" .url }}
+        <li><a href="{{ $u }}"{{ if eq $u $here }} aria-current="page"{{ end }}>{{ .label }}</a></li>
+        {{- end }}
+        <li class="nav__join"><a class="btn btn--red" href="{{ partial "url.html" "/#join" }}">Join the team</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+</header>
