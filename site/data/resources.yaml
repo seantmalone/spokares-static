@@ -3,7 +3,8 @@
 # Each link needs a title, an address (url) and one plain line (note) saying
 # what it is. "opens" is optional: the short name of whoever runs the site
 # the link goes to. It is not shown on the page; screen readers read it out
-# after the link, as "(opens FEMA)". Without it they read the web address.
+# after the link, as "(opens FEMA)". Without it they hear the site's name
+# taken from its address, such as "(opens weather.gov)".
 # Every value goes in straight double quotes. Addresses must start https://.
 #
 # Rules: link to the organization that keeps the page current. Only link to
