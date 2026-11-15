@@ -1,4 +1,5 @@
 ---
+# TEST DATA: do not edit; the real file is site/content/members.md
 title: "For members"
 description: "Net settings, forms and task books for Spokane County ARES-ACS members."
 main_class: "workspace"

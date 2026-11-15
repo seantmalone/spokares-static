@@ -4,7 +4,7 @@
 Run: python3 site/tools/test_check_data.py
 
 Each test copies the frozen fixture copies of facts.yaml and resources.yaml
-(site/tools/fixtures/data/, never the live site/data/ files, so a yearly edit
+(site/tools/fixtures/data/*.fixture.yaml, never the live site/data/ files, so a yearly edit
 cannot break a test) into a temporary folder, makes one edit a volunteer might
 make, and runs check_data.py on it as a subprocess, the way the build does. A
 mistake must fail with one plain line naming the file and line, and never a
@@ -27,7 +27,7 @@ class Case(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self._tmp.name)
         for name in ("facts.yaml", "resources.yaml"):
-            (self.dir / name).write_bytes((DATA / name).read_bytes())
+            (self.dir / name).write_bytes((DATA / name.replace(".", ".fixture.")).read_bytes())
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -78,7 +78,9 @@ class FixtureFiles(Case):
         tools, data = self.dir / "site" / "tools", self.dir / "site" / "data"
         tools.mkdir(parents=True)
         shutil.copy(CHECKER, tools / CHECKER.name)
-        shutil.copytree(DATA, data)
+        data.mkdir(parents=True)
+        for name in ("facts.yaml", "resources.yaml"):
+            shutil.copyfile(DATA / name.replace(".", ".fixture."), data / name)
         r = subprocess.run([sys.executable, str(tools / CHECKER.name)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         (data / "facts.yaml").write_text('net:\n  day: "Tuesday\n', encoding="utf-8")

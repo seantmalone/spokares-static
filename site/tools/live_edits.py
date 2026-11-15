@@ -481,5 +481,18 @@ class MistakesStillRefused(RealSite):
 
 
 
+class FixturesMatchTheRealFiles(unittest.TestCase):
+    """G4: the fixture data files carry the same comments as the real ones, so
+    the self-tests read like the files a volunteer edits."""
+
+    def test_comments(self):
+        for name in ("facts", "resources"):
+            real = (SITE / "data" / f"{name}.yaml").read_text(encoding="utf-8")
+            fixture = (TOOLS / "fixtures" / "data" / f"{name}.fixture.yaml").read_text(encoding="utf-8")
+            comments = [[l for l in t.splitlines() if l.lstrip().startswith("#") and "TEST DATA" not in l]
+                        for t in (real, fixture)]
+            self.assertEqual(comments[0], comments[1], f"the comments in {name}.fixture.yaml differ from {name}.yaml")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

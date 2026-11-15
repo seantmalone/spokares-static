@@ -1,4 +1,5 @@
 ---
+# TEST DATA: do not edit; the real file is site/content/how-it-works.md
 title: "How it works"
 description: "How the weekly net runs, how the county activates volunteers, how a message moves, and how members train."
 ---

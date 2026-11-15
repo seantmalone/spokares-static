@@ -1,3 +1,4 @@
+# TEST DATA: do not edit; the real file is site/data/facts.yaml
 # The facts on spokares.org that can change.
 # To change one, edit the value after the colon and commit.
 # Keep the quotes. Do not rename the labels on the left.
@@ -70,8 +71,10 @@ contact:
 
 groupsio: "https://spokaneares-acs.groups.io/g/main"
 
-# Files kept on the site. To replace one, upload the new file with the
-# same name to site/static/files/ and change the version here.
+# Files kept on the site. To replace one, follow "Replace the application
+# or a task book" in MAINTAINING.md: on a new branch, upload the new file to
+# site/static/files/ with the name given here, change its version here, then
+# merge the pull request so both publish together.
 files:
   - id: "ares-application"
     title: "Spokane County ARES membership application"

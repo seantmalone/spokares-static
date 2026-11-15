@@ -1,4 +1,5 @@
 ---
+# TEST DATA: do not edit; the real file is site/content/resources.md
 title: "Resources"
 description: "Public sources for emergency communications training, forms, weather and licensing."
 main_class: "workspace"

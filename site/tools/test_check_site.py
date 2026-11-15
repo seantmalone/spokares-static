@@ -655,7 +655,7 @@ class DocumentPeople(Case):
         self.assertPasses()
 
 
-FIXTURE_PDF = Path(__file__).resolve().parent / "fixtures" / "files" / "arrl-ares-task-book.pdf"
+FIXTURE_PDF = Path(__file__).resolve().parent / "fixtures" / "files" / "arrl-ares-task-book.fixture.pdf"
 NOTE = ("note: files/arrl-ares-task-book.pdf: only a PDF's author fields can be checked; open it and make sure it "
         "holds no personal contact details")
 

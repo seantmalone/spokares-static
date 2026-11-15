@@ -52,8 +52,17 @@ def copy_site(dest, site=SITE):
         return skip
     shutil.copytree(site, copy, ignore=ignore)
     for src, target in (("data", "data"), ("content", "content"), ("files", "static/files")):
-        shutil.copytree(FIXTURES / src, copy / target)
+        install_fixtures(FIXTURES / src, copy / target)
     return copy
+
+
+def install_fixtures(src, dest):
+    """Copies fixture files under their real names: facts.fixture.yaml
+    becomes facts.yaml. (The ".fixture" keeps them from being mistaken for
+    the real files in GitHub's file finder.)"""
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in sorted(src.iterdir()):
+        shutil.copyfile(f, dest / f.name.replace(".fixture.", "."))
 
 
 def page_text(path):
@@ -465,6 +474,19 @@ class PreviewSwitch(Build):
                             "--facts", str(self.site / "data" / "facts.yaml")], capture_output=True, text=True)
         self.assertEqual(r.returncode, 1)
         self.assertIn("noindex", r.stdout)
+
+
+class FixtureNames(unittest.TestCase):
+    """G4: a fixture cannot be mistaken for the real file it copies."""
+
+    def test_every_fixture_is_marked(self):
+        for f in sorted(FIXTURES.rglob("*")):
+            if not f.is_file():
+                continue
+            self.assertIn(".fixture.", f.name, f"{f.relative_to(TOOLS)} is not named *.fixture.*")
+            if f.suffix in (".yaml", ".md"):
+                self.assertIn("# TEST DATA: do not edit; the real file is site/",
+                              "\n".join(f.read_text(encoding="utf-8").splitlines()[:2]), f.name)
 
 
 class SelfTestStep(unittest.TestCase):
