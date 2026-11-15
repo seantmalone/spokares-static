@@ -166,6 +166,143 @@ class FactsReachEveryPage(Build):
         self.assertIn("second and fourth Wednesdays", how)
 
 
+# ------------------------------------------------------------------ every fact changed
+
+# Leaves that are not page text: names the templates and pages refer to.
+STRUCTURAL = {"id", "file", "kind"}
+# Text that stays on purpose when every fact changes, matched in the built
+# pages' text (tags removed). Each is history, or a name that is not the fact.
+STAYS = [
+    # History: the club call sign's story and the 2004 net (About, "History and W7GBU").
+    r"History and W7GBU", r"The W7GBU story", r"Bula, W7GBU", r"W7GBU becomes",
+    r"records show the Tuesday net",
+    # The agency that hosts the meetings is named as the agency we serve, and
+    # "Spokane" is part of the group's and agencies' names, not the meeting city.
+    r"Spokane County Emergency Management", r"\bSpokane\b",
+    # The office, named in sentences about what it does (the leadership table
+    # reads its holder and title from facts.yaml).
+    r"(?i)Emergency Coordinators?\b",
+]
+
+
+def new_values():
+    """A new value for every kind of leaf, unlike any value the site has."""
+    n = iter(range(1, 1000))
+    calls = (f"K7Z{a}{b}" for a in "QRSTUVWXY" for b in "ABCDEFGHJKLMNPQRSTUVWXYZ")
+    made = {
+        "weekday": lambda old: "Friday" if old != "Friday" else "Monday",
+        "time": lambda old: "6:45 PM" if old != "6:45 PM" else "5:15 PM",
+        "freq": lambda old: f"44{next(n) % 10}.{next(n) % 10}75 MHz",
+        "offset": lambda old: "+5 MHz" if not old.startswith("+") else "-5 MHz",
+        "tone": lambda old: f"DCS {700 + next(n):03d}",
+        "call": lambda old: next(calls),
+        "weather_call": lambda old: "WNG604" if old != "WNG604" else "KEC88",
+        "nights": lambda old: "first and third" if old != "first and third" else "second and fourth",
+        "text": lambda old: f"Zed words {next(n)}",
+        "role": lambda old: f"Zed role {next(n)}",
+        "callsigns": lambda old: next(calls),
+        "email": lambda old: "zed-secretary@" + old.split("@", 1)[1],
+        "groupsio": lambda old: "https://zed-group.groups.io/g/zed",
+        "version": lambda old: f"March {next(n)}, 2031",
+    }
+    return made
+
+
+def leaves(schema, node, path=()):
+    """(kind, value, line, path) for every leaf of a data file, as check_data reads it."""
+    if isinstance(schema, dict):
+        for k, sub in schema.items():
+            k = k.rstrip("?")
+            if isinstance(node, dict) and k in node:
+                v, n = node[k]
+                if isinstance(sub, str):
+                    yield sub, v, n, path + (k,)
+                else:
+                    yield from leaves(sub, v, path + (k,))
+    elif isinstance(schema, list):
+        for i, item in enumerate(node):
+            yield from leaves(schema[0], item, path + (i,))
+
+
+def change_every_fact(site, docx_with):
+    """Changes every leaf of site/data/facts.yaml that is page text to a new
+    value, and puts in place of each hosted Word file that gives the contact
+    address a clean one, made by docx_with(paragraphs), with the new address.
+    Returns [(path, old value, new value)]."""
+    import check_data
+    import check_site
+    f = site / "data" / "facts.yaml"
+    tree = check_data.load(f)
+    lines = f.read_text(encoding="utf-8").splitlines(keepends=True)
+    made, changed = new_values(), []
+    for kind, old, line, path in leaves(check_data.SCHEMA_FACTS, tree):
+        if path[-1] in STRUCTURAL:
+            continue
+        new = made[kind](old)
+        lines[line - 1] = re.sub(r'"(?:\\.|[^"\\])*"', lambda m: f'"{new}"', lines[line - 1], count=1)
+        changed.append((".".join(map(str, path)), old, new))
+    f.write_text("".join(lines), encoding="utf-8")
+    old_email = check_data.strip(tree)["contact"]["email"]
+    new_email = next(new for p, _, new in changed if p == "contact.email")
+    for doc in sorted((site / "static" / "files").glob("*.docx")):
+        text, _, err = check_site.docx_text(doc)
+        if old_email in text:
+            doc.write_bytes(docx_with([l.replace(old_email, new_email) for l in text.splitlines() if l.strip()]))
+    return changed
+
+
+def stale_values(pub, changed):
+    """Old values still on the built pages, outside the text that STAYS."""
+    left = []
+    for p in sorted(pub.rglob("*.html")):
+        text = page_text(p)
+        stays = [m.span() for s in STAYS for m in re.finditer(s, text)]
+        for path, old, _ in changed:
+            # A name of several words may also start a sentence or sit inside one.
+            forms = {old, old.lower(), old[:1].lower() + old[1:]} if " " in old else {old}
+            for m in (m for f in forms for m in re.finditer(re.escape(f), text)):
+                if any(a <= m.start() and m.end() <= b for a, b in stays):
+                    continue
+                left.append(f"{p.relative_to(pub)}: {path} {old!r}: …{text[max(0, m.start() - 60):m.end() + 30]}…")
+    return left
+
+
+def small_docx(paragraphs):
+    """A small, clean Word file with these paragraphs."""
+    import io
+    import zipfile
+    from xml.sax.saxutils import escape
+    body = "".join(f"<w:p><w:r><w:t>{escape(p)}</w:t></w:r></w:p>" for p in paragraphs)
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("word/document.xml", f"<w:document><w:body>{body}</w:body></w:document>")
+        z.writestr("docProps/core.xml", "<cp:coreProperties><dc:creator>Spokane County ARES-ACS</dc:creator>"
+                                        "<cp:lastModifiedBy></cp:lastModifiedBy></cp:coreProperties>")
+    return b.getvalue()
+
+
+class EveryFactChanged(Build):
+    """F1: when every fact in facts.yaml changes, no old value stays on the
+    site except the text listed in STAYS. (A sentence that restated a fact
+    would go stale the day the fact changed.)"""
+
+    def test_no_old_value_is_left(self):
+        changed = change_every_fact(self.site, small_docx)
+        self.assertGreater(len(changed), 30)
+        code, out, pub = self.build()
+        self.assertEqual(code, 0, out[-3000:])
+        r = subprocess.run([sys.executable, str(TOOLS / "check_site.py"), str(pub), "--base", BASE,
+                            "--facts", str(self.site / "data" / "facts.yaml")], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout[-3000:])
+        left = stale_values(pub, changed)
+        self.assertEqual(left, [], "\n".join(left))
+        about = page_text(pub / "about" / "index.html")
+        for path, _, new in changed:
+            if path.startswith(("leadership", "contact")):
+                self.assertIn(new, about, path)
+
+
 class TemplateGuards(Build):
     """M1, m3, m4, m7: a bad value that got past check_data.py stops the build clearly."""
 

@@ -54,13 +54,13 @@ An agency that needs radio support asks Spokane County Emergency Management, whi
 
 ### ARES {#ares-path}
 
-1. Fill out the Spokane County ARES membership application. It includes a county non-disclosure agreement.
+1. Fill out the ARES application. It includes a county non-disclosure agreement.
 {.seq}
 
 {{< button file="ares-application" text="Get the ARES application" class="btn--red" >}}
 
 2. Bring it to a meeting and give it to the Emergency Coordinator or an AEC, or send it to the [contact address](#contact).
-3. Track your training in the [ARRL ARES Task Book](#arrl-task-book).
+3. Track your training in the [ARRL task book](#arrl-task-book).
 {.seq}
 
 ARRL membership isn’t needed to join.
@@ -74,7 +74,7 @@ ARRL membership isn’t needed to join.
 
 Task books list what each level requires and who signs off on it.
 
-### ACS Position Task Book {#acs-task-book}
+### ACS task book {#acs-task-book}
 
 {{< about-training >}}
 

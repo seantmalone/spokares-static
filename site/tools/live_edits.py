@@ -33,7 +33,7 @@ IGNORE = shutil.ignore_patterns("public", "resources", ".hugo_build.lock", ".ref
 sys.path.insert(0, str(TOOLS))
 import check_data  # noqa: E402  (same folder; standard library only)
 import check_site  # noqa: E402
-from test_build import page_text  # noqa: E402
+from test_build import change_every_fact, page_text, small_docx, stale_values  # noqa: E402
 
 
 def copy_real_site(dest):
@@ -479,6 +479,18 @@ class MistakesStillRefused(RealSite):
         f.write_text(f.read_text(encoding="utf-8") + "\nPress <kbd>Enter</kbd> to send.\n", encoding="utf-8")
         self.refused("HTML tags are not allowed in page text; remove <kbd>")
 
+
+
+class EveryFactChangedOnTheRealSite(RealSite):
+    """F1: every fact in the real facts.yaml changed at once passes the gate,
+    and no old value stays on the site except the text listed in
+    test_build.STAYS (history, and names that are not the fact)."""
+
+    def test_no_old_value_is_left(self):
+        changed = change_every_fact(self.site, small_docx)
+        self.passes("about/index.html", values=[new for path, _, new in changed if path.startswith("leadership")])
+        left = stale_values(self.site / "public", changed)
+        self.assertEqual(left, [], "\n".join(left))
 
 
 class FixturesMatchTheRealFiles(unittest.TestCase):
