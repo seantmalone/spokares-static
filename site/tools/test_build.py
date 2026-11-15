@@ -214,6 +214,11 @@ class RawHtmlInBlocks(Build):
         self.assertIn('id="weekly-net"', members)
         self.assertIn("ares-application.docx", members)
 
+    def test_attribute_like_text_is_fine(self):
+        # m5: text that merely looks like an attribute is not refused.
+        self.edit("data/facts.yaml", 'title: "ACS Position Task Book"', 'title: "ACS Position Task Book (style=2024 onboard=yes)"')
+        self.assertIn("style=2024 onboard=yes", self.page(self.built(), "members/index.html"))
+
     def test_code_block_keeps_its_lines(self):
         # m14: a fenced block inside chapter keeps its line breaks.
         self.edit("content/about.md", "## Contact {#contact}\n", "## Contact {#contact}\n\n```\nline one\nline two\n```\n")

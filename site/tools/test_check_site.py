@@ -522,6 +522,12 @@ class Dates(Case):
         self.body("<p>Thursday the 18th is cancelled.</p>")
         self.assertFails("printed date 'Thursday the 18th'")
 
+    def test_full_weekday_names(self):
+        for text, hit in [("Exam on Saturday the 14th.", "Saturday the 14th"),
+                          ("Wednesday, March 4 at the EOC.", "Wednesday, March 4")]:
+            self.body(f"<p>{text}</p>")
+            self.assertFails(f"printed date '{hit}'")
+
     def test_dotted_iso(self):
         self.body("<p>2026.12.18 cancelled</p>")
         self.assertFails("printed date '2026.12.18'")

@@ -100,7 +100,8 @@ PDF_EMAIL = re.compile(rb"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0
 
 MONTH = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?"
          r"|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
-WEEKDAY = r"(?:Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun)(?:day)?"
+WEEKDAY = (r"(?:Mon(?:day)?|Tue(?:s(?:day)?)?|Wed(?:nesday)?|Thu(?:r(?:s(?:day)?)?)?|Fri(?:day)?"
+           r"|Sat(?:urday)?|Sun(?:day)?)")
 ORD = r"\d{1,2}(?:st|nd|rd|th)"
 # Printed dates: "Sat, Oct 10", "November 7", "27 June", "Thursday the 18th",
 # "the 21st this December", 2026-11-14, 2026.11.14, 11/14/2026, 12/18.
