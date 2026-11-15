@@ -1,26 +1,42 @@
 #!/usr/bin/env python3
-"""Checks the built site. Usage: check_site.py <public-dir> [--stage N] [--base /prefix]
+"""Checks the built site.
 
---base is the path prefix the site was built for (GitHub Pages preview:
-/spokares-static). Every internal address must start with it.
+Usage: check_site.py <public-dir> [--base /prefix] [--preview | --live]
+                     [--facts path/to/facts.yaml] [--stage N]
 
-Standard library only. Exits 1 and prints one line per problem.
-Stages let early tasks run the checks that apply so far:
-  1 shell   2 facts   3 home   4 how   5 about   6 members   7 resources (all)
-The stage only decides which of the named PAGES must exist and whether their
-anchors are checked yet. Every other check runs on every *.html file (and
-every *.css file) under <public-dir>.
+--base     the path prefix the site was built for (GitHub Pages preview:
+           /spokares-static). Every internal address must start with it.
+--preview  (the default) every page must carry <meta name="robots" content="noindex">.
+--live     no page may carry it (the build for spokares.org itself).
+--facts    the facts file the site was built from (default: site/data/facts.yaml
+           beside this script). The checker reads the contact address, the
+           hosted files and their versions from it.
+--stage    only for building the site task by task: which of the named PAGES
+           must exist yet (1 shell 2 facts 3 home 4 how 5 about 6 members
+           7 resources, the default).
+
+Every other check runs on every *.html file (and every *.css file, and every
+hosted file under files/) under <public-dir>. Standard library only. Prints
+one line per problem and exits 1 if there are any.
 
 Self-test: python3 site/tools/test_check_site.py
 """
 import csv
+import datetime
 import html
 import re
 import sys
+import zipfile
+import zlib
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import check_data  # noqa: E402  (same folder; standard library only)
+
+USAGE = ("usage: check_site.py <public-dir> [--base /prefix] [--preview | --live] "
+         "[--facts facts.yaml] [--stage 1-7]")
 PAGES = {
     "index.html": 3,
     "how-it-works/index.html": 4,
@@ -30,51 +46,80 @@ PAGES = {
     "404.html": 1,
 }
 REMOVED_PATHS = ["members/exercises", "members/documents", "docs", "search"]
-# Removed wording, matched case-insensitively against the page's text with all
-# whitespace (line breaks, no-break spaces) folded to one space and tags removed.
-FORBIDDEN = [
-    "Schedule as of", "Last reviewed", "being recovered", "new website",
-    "This week", "Next up", "Later this season", "Not posted yet",
-    "Volunteer needed", "Open position", "Net Control Schedule", "coming soon",
-]
+SITE_DOMAIN = check_data.SITE_DOMAIN
+FILES_AUTHOR = "Spokane County ARES-ACS"
+
+STALE = ("goes out of date: the site is edited about once a year, so it must not say "
+         "when something will happen or when it was last checked; say what is true all year, or leave it out")
+EMPTY_ROLE = "leave an empty position out of facts.yaml instead of announcing it"
+SCHEDULE = "schedules are kept on the members' group, not on the site"
+# Removed wording, matched as whole words, ignoring case, against the page's
+# text with all whitespace folded to one space and tags removed.
+FORBIDDEN = {
+    "schedule as of": STALE, "last reviewed": STALE, "being recovered": STALE,
+    "new website": STALE, "this week": STALE, "next up": STALE,
+    "later this season": STALE, "not posted yet": STALE, "coming soon": STALE,
+    "posted soon": STALE, "available soon": STALE, "ready soon": STALE,
+    "volunteer needed": EMPTY_ROLE, "open position": EMPTY_ROLE, "position open": EMPTY_ROLE,
+    "net control schedule": SCHEDULE,
+}
+FORBIDDEN_RE = [(re.compile(r"(?<![\w-])" + re.escape(k).replace(r"\ ", r"\s+") + r"(?![\w-])", re.I), k, why)
+                for k, why in FORBIDDEN.items()]
+# "Next:" as a label, and "Soon" as a label on its own ("Soon", "(soon)", "Soon:").
+LABELS = [(re.compile(r"(?i)\bnext:\s"), "Next:", STALE),
+          (re.compile(r"(?i)\(soon\)"), "Soon", STALE)]
 # Class and path tokens, matched in the raw HTML.
-FORBIDDEN_RAW = ["needs-verify", "data-verify", "wp-block-navigation", "wp-content",
-                 "wp-includes"]
-# Patterns matched against the same normalised text. "Soon" as a label is
-# capitalised; "as soon as" in a sentence is fine.
-FORBIDDEN_WORDS = [r"\bSoon\b", r"(?i)\bnext:\s"]
+FORBIDDEN_RAW = ["needs-verify", "data-verify", "wp-block-navigation", "wp-content", "wp-includes"]
+# Words that mark an unfilled position, inside the leadership tables.
+PLACEHOLDER = check_data.PLACEHOLDER
 FACTCHECK = ["147.300", "100 Hz", "8:00 PM", "Second Saturday", "Third Thursday",
              "1121 W Gardner Ave", "W7TSC", "info@spokares.org"]
 GROUPS_IO = "https://spokaneares-acs.groups.io/g/main"
+# Elements and attributes the site never uses; any of them is a sign of
+# pasted or injected HTML.
+BANNED_TAGS = {"base", "form", "iframe", "object", "embed", "animate", "set", "frame", "frameset",
+               "applet", "portal"}
+DANGEROUS_SCHEME = re.compile(r"^(?:javascript|vbscript|data):", re.I)
 
 DASH = "\\-\u2010‑‒–—−"
 SEP = f"[{DASH}.\\s]"
-# (509) 555-1234, 509-555-1234, 509.555.1234, 509 555 1234, 509–555–1234,
-# +1 509 555 1234, 5095551234, and 555-1234. Frequencies (147.300), offsets,
-# times, years, ZIPs and form numbers do not have these shapes.
+# North American numbers: area code and exchange start 2-9. (509) 555-1234,
+# 509-555-1234, 509.555.1234, 509 555 1234, 509–555–1234, +1 509 555 1234,
+# 5095551234 and 555-1234. Frequencies, offsets, times, years, ZIPs, form
+# numbers and FCC Registration Numbers (0012345678) do not have these shapes.
 PHONE = re.compile(
-    rf"(?<![\d.])(?:\+?1{SEP}?)?(?:\(\d{{3}}\)\s?|\d{{3}}{SEP})\d{{3}}{SEP}\d{{4}}(?![\d])"
-    rf"|(?<![\d.])1?\d{{10}}(?!\d)"
-    rf"|(?<![\d.{DASH}])\d{{3}}[{DASH}]\d{{4}}(?![\d{DASH}])"
+    rf"(?<![\d.])(?:\+?1{SEP}?)?(?:\([2-9]\d\d\)\s?|[2-9]\d\d{SEP})[2-9]\d\d{SEP}\d{{4}}(?![\d])"
+    rf"|(?<![\d.])1?[2-9]\d\d[2-9]\d{{6}}(?!\d)"
+    rf"|(?<![\d.{DASH}])[2-9]\d\d[{DASH}]\d{{4}}(?![\d{DASH}])"
 )
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-ALLOWED_EMAILS = {"info@spokares.org"}
 NOT_EMAIL_TLDS = {"png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico"}
+# For the best-effort scan of PDF bytes: only addresses with a real-looking ending.
+PDF_EMAIL = re.compile(rb"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*"
+                       rb"\.(?:com|org|net|gov|edu|mil|us|io|info|biz|co)\b")
 
 MONTH = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?"
          r"|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
 WEEKDAY = r"(?:Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun)(?:day)?"
-# Printed dates: "Sat, Oct 10", "November 7", "27 June", 2026-11-14, 11/14/2026.
-# Month + year ("August 2023") and bare years are history, not dates.
+ORD = r"\d{1,2}(?:st|nd|rd|th)"
+# Printed dates: "Sat, Oct 10", "November 7", "27 June", "Thursday the 18th",
+# "the 21st this December", 2026-11-14, 2026.11.14, 11/14/2026, 12/18.
+# Month + past year ("August 2023") and bare years are history, not dates.
 DATE = re.compile(
     rf"\b{WEEKDAY},?\s+{MONTH}\.?\s+\d"
     rf"|\b{MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?![\d:])"
     rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{MONTH}\b"
-    r"|\b\d{4}-\d{2}-\d{2}\b"
-    r"|\b\d{1,2}/\d{1,2}/(?:\d{4}|\d{2})\b"
+    rf"|\b{WEEKDAY}\s+(?:the\s+)?{ORD}\b"
+    rf"|\b{ORD}\b[^.;!?|]{{0,25}}?\b{MONTH}\b"
+    rf"|\b{MONTH}\b[^.;!?|]{{0,25}}?\b{ORD}\b"
+    r"|\b\d{4}-\d{1,2}-\d{1,2}\b"
+    r"|\b\d{4}\.\d{1,2}\.\d{1,2}\b"
+    r"|(?<![\d/.])(?:0?[1-9]|1[0-2])/(?:0?[1-9]|[12]\d|3[01])(?:/(?:\d{4}|\d{2}))?(?![\d/])"
 )
-# A date is allowed only as a hosted file's version: in the same block (list
-# item, paragraph, table cell…) as a link to /files/….
+MONTH_YEAR = re.compile(rf"\b{MONTH}\.?,?\s+((?:19|20)\d\d)\b")
+# A date is allowed only as a hosted file's version, written exactly as in
+# facts.yaml, in the same block (list item, paragraph, table cell…) as a link
+# to that file under /files/.
 DATE_BLOCKS = {"li", "p", "td", "th", "dd", "dt", "figcaption", "caption",
                "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "div", "section",
                "main", "body"}
@@ -88,13 +133,19 @@ def norm(s):
     return re.sub(r"\s+", " ", s)
 
 
+def context(text, m, width=45):
+    a, b = max(0, m.start() - width), min(len(text), m.end() + width)
+    return ("…" if a else "") + text[a:b].strip() + ("…" if b < len(text) else "")
+
+
 class Page(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.ids, self.links, self.loads, self.text = set(), [], [], []
+        self.ids, self.dup_ids, self.links, self.loads, self.text = set(), [], [], [], []
         self.attr_text = []   # attribute values people read or copy
         self.attr_all = []    # every attribute value (for the e-mail check)
         self.attr_phone = []  # attributes that could carry a phone number (not SVG geometry)
+        self.banned = []      # (what, detail)
         self.styles = 0
         self.h1 = 0
         self.title = ""
@@ -103,22 +154,34 @@ class Page(HTMLParser):
         self.robots = []
         self._in_title = False
         self._skip = 0
-        self._stack = []          # open elements: [tag, block_id]
-        self._block = 0           # id of the innermost open date block
-        self.blocks_with_files = set()
+        self._stack = []          # open elements: [tag, block_id, is_roles]
+        self._block = 0
+        self.block_links = {}     # block_id -> hrefs inside it
         self.block_text = {}      # block_id -> its own text, for the date check
+        self.roles_text = []      # text inside the leadership tables (figure.roles)
 
     def _blocks(self):
-        return [b for _, b in self._stack if b is not None]
+        return [b for _, b, _ in self._stack if b is not None]
 
     def handle_starttag(self, tag, attrs):
         a = {k: (v or "") for k, v in attrs}
         if a.get("id"):
+            if a["id"] in self.ids:
+                self.dup_ids.append(a["id"])
             self.ids.add(a["id"])
         if "style" in a:
             self.styles += 1
+        if tag in BANNED_TAGS:
+            self.banned.append((f"<{tag}>", ""))
+        if tag == "meta" and "http-equiv" in a:
+            self.banned.append(("<meta http-equiv>", a["http-equiv"]))
         for k, v in a.items():
             self.attr_all.append(v)
+            if k.startswith("on"):
+                self.banned.append((f"the event handler {k}=", v[:40]))
+            clean = re.sub(r"[\s\x00-\x1f]", "", v)
+            if DANGEROUS_SCHEME.match(clean) and not (k == "content" and tag == "meta"):
+                self.banned.append((f"a {clean.split(':')[0].lower()}: value in {k}=", v[:40]))
             if k in TEXT_ATTRS:
                 self.attr_text.append(v)
             if k in TEXT_ATTRS + ("href", "content", "value"):
@@ -142,8 +205,8 @@ class Page(HTMLParser):
             self._skip += 1
         if tag in ("a", "area") and "href" in a:
             self.links.append(a["href"])
-            if "/files/" in a["href"]:
-                self.blocks_with_files.update(self._blocks())
+            for b in self._blocks():
+                self.block_links.setdefault(b, []).append(a["href"])
         if a.get("src") and tag in ("script", "img", "source", "iframe", "video",
                                     "audio", "track", "embed", "input"):
             self.loads.append(a["src"])
@@ -160,8 +223,9 @@ class Page(HTMLParser):
             self.loads.append(a["href"])
         if tag in VOID:
             return
+        roles = "roles" in a.get("class", "").split() or any(r for _, _, r in self._stack)
         self._block += 1
-        self._stack.append([tag, self._block if tag in DATE_BLOCKS else None])
+        self._stack.append([tag, self._block if tag in DATE_BLOCKS else None, roles])
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -188,18 +252,111 @@ class Page(HTMLParser):
             blocks = self._blocks()
             b = blocks[-1] if blocks else 0
             self.block_text[b] = self.block_text.get(b, "") + data
+            if self._stack and self._stack[-1][2]:
+                self.roles_text.append(data)
+
+
+def parse_args(argv):
+    opts = {"root": None, "stage": 7, "base": "", "mode": "preview", "facts": None}
+    it = iter(argv)
+    for a in it:
+        if a in ("--stage", "--base", "--facts"):
+            v = next(it, None)
+            if v is None:
+                sys.exit(f"check_site.py: {a} needs a value. {USAGE}")
+            if a == "--stage":
+                if not (v.isdigit() and 1 <= int(v) <= 7):
+                    sys.exit(f"check_site.py: --stage must be a number from 1 to 7, not {v!r}. {USAGE}")
+                opts["stage"] = int(v)
+            elif a == "--base":
+                if v and not v.startswith("/"):
+                    sys.exit(f"check_site.py: --base must start with a slash, like /spokares-static. {USAGE}")
+                opts["base"] = v.rstrip("/")
+            else:
+                opts["facts"] = Path(v)
+        elif a in ("--preview", "--live"):
+            opts["mode"] = a[2:]
+        elif a.startswith("-"):
+            sys.exit(f"check_site.py: unknown option {a}. {USAGE}")
+        elif opts["root"] is None:
+            opts["root"] = Path(a)
+        else:
+            sys.exit(f"check_site.py: give one folder to check. {USAGE}")
+    if opts["root"] is None:
+        sys.exit(USAGE)
+    if not opts["root"].is_dir():
+        sys.exit(f"check_site.py: {opts['root']} is not a folder; build the site first. {USAGE}")
+    if opts["facts"] is None:
+        opts["facts"] = Path(__file__).resolve().parent.parent / "data" / "facts.yaml"
+    return opts
+
+
+def read_facts(path):
+    """Returns (allowed e-mail addresses, {file name: version}, problems)."""
+    try:
+        facts = check_data.strip(check_data.load(path))
+    except check_data.DataError as e:
+        return set(), None, [f"cannot read the facts file: {e}"]
+    problems, emails, files = [], set(), {}
+    email = (facts.get("contact") or {}).get("email") if isinstance(facts.get("contact"), dict) else None
+    if not isinstance(email, str) or not re.fullmatch(rf"[a-z0-9._%+-]+@{re.escape(SITE_DOMAIN)}", email):
+        problems.append(f"{path}: contact.email must be an address at {SITE_DOMAIN}, not {email!r}")
+    else:
+        emails.add(email)
+    for item in facts.get("files") or []:
+        if isinstance(item, dict) and isinstance(item.get("file"), str):
+            files[item["file"]] = item.get("version") if isinstance(item.get("version"), str) else ""
+    return emails, files, problems
+
+
+def docx_text(path):
+    """Text and metadata of a Word file: (text, {creator, lastModifiedBy}, error)."""
+    try:
+        z = zipfile.ZipFile(path)
+    except (zipfile.BadZipFile, OSError):
+        return "", {}, "is not a readable Word document"
+    out, meta = [], {}
+    for n in z.namelist():
+        if not re.fullmatch(r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml"
+                            r"|word/_rels/[^/]+\.rels|docProps/[^/]+\.xml", n):
+            continue
+        t = z.read(n).decode("utf-8", "replace")
+        if n == "docProps/core.xml":
+            for k in ("dc:creator", "cp:lastModifiedBy"):
+                m = re.search(rf"<{k}>([^<]*)</{k}>", t)
+                meta[k] = html.unescape(m.group(1)).strip() if m else ""
+        if n.endswith(".rels"):
+            out.append(" ".join(unquote(x) for x in re.findall(r'Target="([^"]*)"', t)))
+            continue
+        t = re.sub(r"</w:p>|<w:br/>|<w:tab/>", "\n", t)
+        out.append(html.unescape(re.sub(r"<[^>]+>", "", t)))
+    return "\n".join(out), meta, None
+
+
+def pdf_emails(path):
+    """Best effort: e-mail addresses in a PDF's bytes and its deflated streams."""
+    b = path.read_bytes()
+    parts = [b]
+    for m in re.finditer(rb"stream\r?\n(.*?)endstream", b, re.S):
+        try:
+            parts.append(zlib.decompress(m.group(1)))
+        except zlib.error:
+            pass
+    found = set()
+    for p in parts:
+        found |= {e.decode("ascii", "replace").lower() for e in PDF_EMAIL.findall(p)}
+    return found
 
 
 def main():
-    root = Path(sys.argv[1])
-    stage = 7
-    if "--stage" in sys.argv:
-        stage = int(sys.argv[sys.argv.index("--stage") + 1])
-    base = ""
-    if "--base" in sys.argv:
-        base = sys.argv[sys.argv.index("--base") + 1].rstrip("/")
+    o = parse_args(sys.argv[1:])
+    root, stage, base, mode = o["root"], o["stage"], o["base"], o["mode"]
     problems = []
     pages = {}
+    allowed_emails, files_listed, fp = read_facts(o["facts"])
+    problems += fp
+    versions = sorted({v for v in (files_listed or {}).values() if v}, key=len, reverse=True)
+    this_year = datetime.date.today().year
 
     def local(path, where, what):
         """Strip the base path from an internal address; complain if it is missing."""
@@ -210,14 +367,26 @@ def main():
         problems.append(f"{where}: {what} is not under {base}/: {path}")
         return path
 
+    def own_file_link(href):
+        u = urlparse(href.strip())
+        if u.scheme or u.netloc or not u.path.startswith("/"):
+            return False
+        p = u.path[len(base):] if base and u.path.startswith(base + "/") else u.path
+        return p.startswith("/files/")
+
     for rel, need in PAGES.items():
         if not (root / rel).is_file() and stage >= need:
             problems.append(f"missing page: {rel}")
 
     for f in sorted(root.rglob("*.html")):
         rel = f.relative_to(root).as_posix()
+        try:
+            text = f.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            problems.append(f"{rel}: is not UTF-8 text")
+            continue
         p = Page()
-        p.feed(f.read_text(encoding="utf-8"))
+        p.feed(text)
         p.close()
         pages[rel] = p
 
@@ -258,6 +427,15 @@ def main():
         return not (u.scheme or u.netloc or addr.startswith("/") or addr.startswith("#")
                     or addr == "")
 
+    def dates_in(chunk):
+        m = DATE.search(chunk)
+        if m:
+            return m
+        for m in MONTH_YEAR.finditer(chunk):
+            if int(m.group(1)) >= this_year:
+                return m
+        return None
+
     groups_links = 0
     for rel, p in pages.items():
         raw = (root / rel).read_text(encoding="utf-8")
@@ -270,19 +448,28 @@ def main():
             problems.append(f"{rel}: empty <title>")
         if not (p.description or "").strip():
             problems.append(f"{rel}: empty or missing meta description")
-        if not any("noindex" in r for r in p.robots):
-            problems.append(f'{rel}: missing <meta name="robots" content="noindex">')
+        noindex = any("noindex" in r for r in p.robots)
+        if mode == "preview" and not noindex:
+            problems.append(f'{rel}: missing <meta name="robots" content="noindex"> (this is a preview build)')
+        if mode == "live" and noindex:
+            problems.append(f"{rel}: has noindex, but this is the live build; build with HUGO_PARAMS_PREVIEW=false")
         if p.styles:
             problems.append(f"{rel}: inline style (style= or <style>) found {p.styles} time(s)")
-        for phrase in FORBIDDEN:
-            if phrase.lower() in text.lower():
-                problems.append(f"{rel}: forbidden text {phrase!r}")
+        for d in sorted(set(p.dup_ids)):
+            problems.append(f'{rel}: the id "{d}" is used more than once on the page; ids must be unique')
+        for what, detail in p.banned:
+            problems.append(f"{rel}: {what} is not allowed on this site" + (f" ({detail})" if detail else ""))
+        for rx, phrase, why in FORBIDDEN_RE + LABELS:
+            m = rx.search(text)
+            if m:
+                problems.append(f'{rel}: "{context(text, m)}": "{m.group(0).strip(" |")}" {why}')
         for token in FORBIDDEN_RAW:
             if token in raw.lower():
-                problems.append(f"{rel}: forbidden text {token!r}")
-        for pat in FORBIDDEN_WORDS:
-            if re.search(pat, text):
-                problems.append(f"{rel}: forbidden wording /{pat}/")
+                problems.append(f"{rel}: forbidden class or path {token!r} in the HTML")
+        roles = norm(" ".join(p.roles_text))
+        m = PLACEHOLDER.search(roles)
+        if m:
+            problems.append(f'{rel}: the leadership table says "{m.group(0)}"; {EMPTY_ROLE}')
         tels = [unquote(h[4:]) for h in p.links if h.lower().startswith("tel:")]
         for s in [norm(" ".join(p.text))] + p.attr_phone + tels:
             m = PHONE.search(s)
@@ -292,13 +479,20 @@ def main():
         found = emails(html.unescape(raw)) | emails(" ".join(p.attr_all))
         for h in p.links:
             found |= emails(unquote(h))
-        for e in sorted(found - ALLOWED_EMAILS):
+        for e in sorted(found - allowed_emails):
             problems.append(f"{rel}: e-mail address not allowed: {e}")
         for block, chunk in p.block_text.items():
-            m = DATE.search(norm(chunk))
-            if m and block not in p.blocks_with_files:
-                problems.append(f"{rel}: printed date {m.group(0)!r} (meetings are rules only)")
-        m = DATE.search(norm(" ".join(p.attr_text)))
+            chunk = norm(chunk)
+            if re.fullmatch(r"\W*soon\W*", chunk, re.I):
+                problems.append(f'{rel}: "{chunk.strip()}" as a label {STALE}')
+            if any(own_file_link(h) for h in p.block_links.get(block, [])):
+                for v in versions:
+                    chunk = chunk.replace(v, " ")
+            m = dates_in(chunk)
+            if m:
+                problems.append(f"{rel}: printed date {m.group(0)!r} in \"{context(chunk, m)}\" "
+                                "(meetings are rules only; a date may appear only as a hosted file's version)")
+        m = dates_in(norm(" ".join(p.attr_text)))
         if m:
             problems.append(f"{rel}: printed date {m.group(0)!r} in an attribute")
         for src in p.loads:
@@ -339,11 +533,42 @@ def main():
             if not target_ok(path, u.fragment):
                 problems.append(f"{rel}: broken internal link {href}")
     if stage >= 6 and groups_links != 1:
-        problems.append(f"expected exactly one groups.io link, found {groups_links}")
+        problems.append(f"expected exactly one groups.io link (on /members/), found {groups_links}")
+
+    # Hosted files: exactly the ones listed in facts.yaml, and nothing personal in them.
+    fdir = root / "files"
+    shipped = {f.name for f in fdir.iterdir() if f.is_file()} if fdir.is_dir() else set()
+    if files_listed is not None:
+        for name in sorted(shipped - set(files_listed)):
+            listed = ", ".join(sorted(files_listed)) or "none"
+            problems.append(f"files/{name} is not listed under files in facts.yaml; a replacement must keep "
+                            f"the listed name ({listed}), so delete this upload or rename it")
+        for name in sorted(set(files_listed) - shipped):
+            problems.append(f"files/{name} is listed in facts.yaml but missing from site/static/files/; "
+                            "upload it with exactly that name")
+    for name in sorted(shipped):
+        f = fdir / name
+        if name.lower().endswith(".docx"):
+            text, meta, err = docx_text(f)
+            if err:
+                problems.append(f"files/{name}: {err}")
+                continue
+            for e in sorted(emails(text) - allowed_emails):
+                problems.append(f"files/{name}: e-mail address not allowed: {e}")
+            m = PHONE.search(norm(text))
+            if m:
+                problems.append(f"files/{name}: something that looks like a phone number: {m.group(0)!r}")
+            for k, v in meta.items():
+                if v not in ("", FILES_AUTHOR):
+                    problems.append(f"files/{name}: the document's {k} is {v!r}; set it to {FILES_AUTHOR!r} "
+                                    "or empty (in Word: File, Info, Properties)")
+        elif name.lower().endswith(".pdf"):
+            for e in sorted(pdf_emails(f) - allowed_emails):
+                problems.append(f"files/{name}: e-mail address not allowed: {e}")
 
     for f in sorted(root.rglob("*.css")):
         rel = f.relative_to(root).as_posix()
-        css = re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8"), flags=re.S)
+        css = re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8", errors="replace"), flags=re.S)
         for m in CSS_URL.finditer(css):
             addr = (m.group(2) if m.group(2) is not None else m.group(4)).strip()
             u = urlparse(addr)

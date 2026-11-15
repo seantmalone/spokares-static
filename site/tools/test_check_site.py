@@ -8,10 +8,12 @@ checker on it as a subprocess, the way CI does. The "Bad" tests prove that a
 problem the checker must catch makes it fail; the "Good" tests prove that
 content this site legitimately contains passes.
 """
+import io
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 CHECKER = Path(__file__).with_name("check_site.py")
@@ -19,6 +21,39 @@ CHECKER = Path(__file__).with_name("check_site.py")
 CSS = """@font-face{font-family:"X";src:url('../fonts/x.woff2') format('woff2');}
 :root{--i:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E");}
 """
+
+FACTS = """# test facts
+contact:
+  email: "info@spokares.org"
+files:
+  - id: "ares-application"
+    title: "ARES application"
+    file: "ares-application.docx"
+    kind: "Word document"
+    version: "November 7, 2024"
+  - id: "acs-task-book"
+    title: "ACS task book"
+    file: "acs-task-book.docx"
+    kind: "Word document"
+    version: "August 9, 2024"
+  - id: "arrl-ares-task-book"
+    title: "ARRL ARES Task Book"
+    file: "arrl-ares-task-book.pdf"
+    kind: "PDF"
+    version: "July 2024"
+"""
+
+
+def docx(text="Phone: ________  Email: ________", creator="Spokane County ARES-ACS", modified="", rels=""):
+    """A small Word file: one paragraph of text and the two author fields."""
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("word/document.xml", f"<w:document><w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p></w:body></w:document>")
+        z.writestr("word/_rels/document.xml.rels", f"<Relationships>{rels}</Relationships>")
+        z.writestr("docProps/core.xml", f"<cp:coreProperties><dc:creator>{creator}</dc:creator>"
+                                        f"<cp:lastModifiedBy>{modified}</cp:lastModifiedBy></cp:coreProperties>")
+    return b.getvalue()
 
 
 def page(body, title="Page", description="A page.", head_extra="", robots=True):
@@ -34,27 +69,52 @@ def page(body, title="Page", description="A page.", head_extra="", robots=True):
     )
 
 
+MEMBERS = """<ul class="lines">
+<li><a href="/files/ares-application.docx">ARES application</a><span class="doc-note">Word document, November 7, 2024</span></li>
+<li><a href="/files/acs-task-book.docx">ACS task book</a><span class="doc-note">Word document, August 9, 2024</span></li>
+<li><a href="/files/arrl-ares-task-book.pdf">ARRL ARES Task Book</a><span class="doc-note">PDF, July 2024</span></li>
+</ul>
+<p><a href="https://spokaneares-acs.groups.io/g/main">Members' group on groups.io</a></p>
+"""
+
+
 class Site:
-    """A minimal built site: 404.html, index.html and the assets they load."""
+    """A complete small built site: the six named pages, their assets, the two
+    hosted files and a facts file. It passes the checker as it is."""
 
     def __init__(self, tmp):
-        self.root = Path(tmp)
+        self.root = Path(tmp) / "public"
+        self.facts = Path(tmp) / "facts.yaml"
+        self.facts.write_text(FACTS, encoding="utf-8")
         self.write("404.html", page('<p>Not here. <a href="/">Home</a></p>', "Page not found"))
         self.write("index.html", page("<p>Welcome.</p>", "Home"))
+        self.write("how-it-works/index.html", page("<p>How.</p>", "How it works"))
+        self.write("about/index.html", page('<h2 id="contact">Contact</h2>', "About"))
+        self.write("members/index.html", page(MEMBERS, "For members"))
+        self.write("resources/index.html", page('<h2 id="forms">Forms</h2>', "Resources"))
         self.write("css/site.css", CSS)
         self.write("fonts/x.woff2", "")
         self.write("img/seal.png", "")
         self.write("img/seal@2x.png", "")
         self.write("js/menu.js", "")
+        self.write_bytes("files/ares-application.docx", docx())
+        self.write_bytes("files/acs-task-book.docx", docx("Level 1 New Member"))
+        self.write_bytes("files/arrl-ares-task-book.pdf", b"%PDF-1.7\n% a form\n%%EOF\n")
 
     def write(self, rel, text):
         f = self.root / rel
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(text, encoding="utf-8")
 
-    def run(self, *args):
+    def write_bytes(self, rel, data):
+        f = self.root / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(data)
+
+    def run(self, *args, facts=True):
+        extra = ["--facts", str(self.facts)] if facts else []
         r = subprocess.run(
-            [sys.executable, str(CHECKER), str(self.root), *args],
+            [sys.executable, str(CHECKER), str(self.root), *extra, *args],
             capture_output=True, text=True,
         )
         return r.returncode, r.stdout + r.stderr
@@ -69,14 +129,15 @@ class Case(unittest.TestCase):
         self._tmp.cleanup()
 
     def assertFails(self, needle=None, *args):
-        code, out = self.site.run("--stage", "1", *args)
+        code, out = self.site.run(*args)
         self.assertEqual(code, 1, f"expected the checker to fail; output:\n{out}")
+        self.assertNotIn("Traceback", out)
         if needle:
             self.assertIn(needle, out)
         return out
 
     def assertPasses(self, *args):
-        code, out = self.site.run("--stage", "1", *args)
+        code, out = self.site.run(*args)
         self.assertEqual(code, 0, f"expected the checker to pass; output:\n{out}")
 
     def body(self, html, rel="index.html", **kw):
@@ -94,31 +155,31 @@ class Bad1ForbiddenWording(Case):
 
     def test_split_by_line_break(self):
         self.body("<p>This\nweek on the net</p>")
-        self.assertFails("forbidden")
+        self.assertFails('"This\nweek" goes out of date'.replace("\n", " "))
 
     def test_split_by_nbsp_entity(self):
         self.body("<p>Open&nbsp;position</p>")
-        self.assertFails("forbidden")
+        self.assertFails('"Open position" leave an empty position out')
 
     def test_split_by_tag(self):
         self.body("<p><span>Open</span> position</p>")
-        self.assertFails("forbidden")
+        self.assertFails('"Open position" leave an empty position out')
 
     def test_next_colon_across_line_break(self):
         self.body("<p>Next:\nthe 12th</p>")
-        self.assertFails("forbidden")
+        self.assertFails('"Next:" goes out of date')
 
     def test_lowercase_coming_soon(self):
         self.body("<p>Photos coming soon</p>")
-        self.assertFails("forbidden")
+        self.assertFails('"coming soon" goes out of date')
 
     def test_in_meta_description(self):
         self.body("<p>Hi</p>", description="Volunteer needed for the net")
-        self.assertFails("forbidden")
+        self.assertFails('"Volunteer needed" leave an empty position out')
 
     def test_class_token_in_raw_html(self):
         self.body('<p class="needs-verify">Hi</p>')
-        self.assertFails("forbidden")
+        self.assertFails("forbidden class or path 'needs-verify'")
 
 
 # ---------------------------------------------------------------- Important 2
@@ -142,7 +203,7 @@ class Bad2EveryPage(Case):
 class Bad3ThirdPartyLoads(Case):
     def test_srcset_external(self):
         self.body('<img alt="" src="/img/seal.png" srcset="https://evil.example/x.png 2x, /img/seal.png 3x">')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_srcset_missing_local(self):
         self.body('<img alt="" src="/img/seal.png" srcset="/img/seal.png 1x, /img/nope.png 3x">')
@@ -150,31 +211,31 @@ class Bad3ThirdPartyLoads(Case):
 
     def test_rel_token_list(self):
         self.body("<p>x</p>", head_extra='<link rel="stylesheet preload" href="https://fonts.googleapis.com/css">\n')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_link_manifest(self):
         self.body("<p>x</p>", head_extra='<link rel="manifest" href="https://evil.example/m.json">\n')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_link_apple_touch_icon(self):
         self.body("<p>x</p>", head_extra='<link rel="apple-touch-icon" href="https://evil.example/i.png">\n')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_video_poster(self):
         self.body('<video poster="https://evil.example/p.jpg"></video>')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_object_data(self):
         self.body('<object data="https://evil.example/x.svg"></object>')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_embed_src(self):
         self.body('<embed src="https://evil.example/x.swf">')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_protocol_relative_load(self):
         self.body('<img alt="" src="//evil.example/x.png">')
-        self.assertFails("third-party load")
+        self.assertFails("third-party load ")
 
     def test_css_import(self):
         self.site.write("css/site.css", CSS + '@import url("https://fonts.googleapis.com/css2");\n')
@@ -196,23 +257,23 @@ class Bad3ThirdPartyLoads(Case):
 class Bad3PhonesAndEmails(Case):
     def test_tel_link(self):
         self.body('<p><a href="tel:+15095551234">Call</a></p>')
-        self.assertFails("phone")
+        self.assertFails("looks like a phone number")
 
     def test_en_dashes(self):
         self.body("<p>Call 509–555–1234</p>")
-        self.assertFails("phone")
+        self.assertFails("looks like a phone number")
 
     def test_no_separators(self):
         self.body("<p>Call 5095551234</p>")
-        self.assertFails("phone")
+        self.assertFails("looks like a phone number")
 
     def test_parentheses_and_nbsp(self):
         self.body("<p>Call (509)&nbsp;555-1234</p>")
-        self.assertFails("phone")
+        self.assertFails("looks like a phone number")
 
     def test_phone_in_attribute(self):
         self.body('<p><button data-copy-text="509-555-1234">Copy</button></p>')
-        self.assertFails("phone")
+        self.assertFails("looks like a phone number")
 
     def test_entity_encoded_email(self):
         self.body("<p>joe&#64;gmail.com</p>")
@@ -228,15 +289,15 @@ class Bad4RelativeLinks(Case):
     def test_relative_href(self):
         self.site.write("members/index.html", page("<p>m</p>", "Members"))
         self.body('<p><a href="members/">Members</a></p>', rel="about/index.html")
-        self.assertFails("relative")
+        self.assertFails("relative ")
 
     def test_relative_href_dot(self):
         self.body('<p><a href="./">Here</a></p>', rel="about/index.html")
-        self.assertFails("relative")
+        self.assertFails("relative ")
 
     def test_relative_src(self):
         self.body('<img alt="" src="img/seal.png">')
-        self.assertFails("relative")
+        self.assertFails("relative ")
 
     def test_relative_under_base(self):
         base = "/spokares-static"
@@ -254,15 +315,15 @@ class Bad4RelativeLinks(Case):
 class BadMinor(Case):
     def test_style_attribute(self):
         self.body('<p style="color:red">x</p>')
-        self.assertFails("style")
+        self.assertFails("inline style")
 
     def test_style_element(self):
         self.body("<p>x</p>", head_extra="<style>p{color:red}</style>\n")
-        self.assertFails("style")
+        self.assertFails("inline style")
 
     def test_highlight_inline_style(self):
         self.body('<pre tabindex="0" style="color:#f8f8f2;background-color:#272822;"><code>x</code></pre>')
-        self.assertFails("style")
+        self.assertFails("inline style")
 
     def test_groups_io_mixed_case_host(self):
         self.body('<p><a href="https://SpokaneARES-ACS.Groups.IO/g/main">group</a></p>')
@@ -290,31 +351,31 @@ class BadMinor(Case):
 
     def test_date_weekday_month_day(self):
         self.body("<p>Next meeting Sat, Oct 10</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_month_day_year(self):
         self.body("<p>The workshop is on November 7, 2026.</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_month_day(self):
         self.body("<p>Field Day is June 27 this year.</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_day_month(self):
         self.body("<p>Field Day is 27 June this year.</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_iso(self):
         self.body("<p>Updated 2026-11-14</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_numeric(self):
         self.body("<p>Updated 11/14/2026</p>")
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_date_beside_unrelated_link(self):
         self.body('<p><a href="/">Home</a> was updated November 7, 2024.</p>')
-        self.assertFails("date")
+        self.assertFails("printed date")
 
     def test_email_inside_word_still_checked(self):
         self.body("<p>Write to bob@example.org.</p>")
@@ -371,8 +432,6 @@ class GoodContent(Case):
         self.site.write("index.html", page(GOOD_HOME, "Home"))
         self.site.write("about/index.html", page(GOOD_ABOUT, "About"))
         self.site.write("members/index.html", page(GOOD_MEMBERS, "For members"))
-        for f in ("ares-application.docx", "acs-task-book.docx", "arrl-ares-task-book.pdf"):
-            self.site.write(f"files/{f}", "")
 
     def test_legitimate_content_passes(self):
         self.assertPasses()
@@ -388,6 +447,319 @@ class GoodContent(Case):
 
     def test_unprefixed_build_fails_under_base(self):
         self.assertFails("not under /spokares-static/", "--base", "/spokares-static")
+
+# ------------------------------------------------------------- final audit
+class HostedFiles(Case):
+    """M4: files/ holds exactly the files listed in facts.yaml."""
+
+    def test_stray_upload(self):
+        self.site.write_bytes("files/old-roster.docx", docx())
+        self.assertFails("files/old-roster.docx is not listed under files in facts.yaml")
+
+    def test_replacement_under_a_new_name(self):
+        (self.site.root / "files/ares-application.docx").unlink()
+        self.site.write_bytes("files/ARES Application 2026.docx", docx())
+        out = self.assertFails("files/ARES Application 2026.docx is not listed")
+        self.assertIn("files/ares-application.docx is listed in facts.yaml but missing", out)
+
+    def test_listed_file_missing(self):
+        (self.site.root / "files/arrl-ares-task-book.pdf").unlink()
+        self.assertFails("files/arrl-ares-task-book.pdf is listed in facts.yaml but missing")
+
+
+class FileContents(Case):
+    """F1: nothing personal inside the hosted files."""
+
+    def test_docx_personal_email(self):
+        self.site.write_bytes("files/ares-application.docx", docx("Send it to bob.smith@gmail.com"))
+        self.assertFails("files/ares-application.docx: e-mail address not allowed: bob.smith@gmail.com")
+
+    def test_docx_mailto_in_rels(self):
+        self.site.write_bytes("files/ares-application.docx",
+                              docx(rels='<Relationship Target="mailto:bob%40gmail.com" TargetMode="External"/>'))
+        self.assertFails("e-mail address not allowed: bob@gmail.com")
+
+    def test_docx_phone(self):
+        self.site.write_bytes("files/ares-application.docx", docx("Call Bob at (509) 555-1234"))
+        self.assertFails("files/ares-application.docx: something that looks like a phone number")
+
+    def test_docx_blank_phone_line_is_fine(self):
+        self.site.write_bytes("files/ares-application.docx", docx("Phone: (____) ____-______  Email: info@spokares.org"))
+        self.assertPasses()
+
+    def test_docx_author(self):
+        self.site.write_bytes("files/ares-application.docx", docx(creator="Jane Member"))
+        self.assertFails("the document's dc:creator is 'Jane Member'")
+
+    def test_docx_last_modified_by(self):
+        self.site.write_bytes("files/ares-application.docx", docx(modified="jsmith"))
+        self.assertFails("cp:lastModifiedBy is 'jsmith'")
+
+    def test_pdf_email_in_a_compressed_stream(self):
+        import zlib
+        stream = zlib.compress(b"BT (Questions: bob.smith@gmail.com) Tj ET")
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n1 0 obj<</Filter/FlateDecode>>stream\n" + stream + b"\nendstream\n%%EOF\n")
+        self.assertFails("files/arrl-ares-task-book.pdf: e-mail address not allowed: bob.smith@gmail.com")
+
+    def test_not_a_word_file(self):
+        self.site.write_bytes("files/ares-application.docx", b"not a zip")
+        self.assertFails("is not a readable Word document")
+
+
+class Dates(Case):
+    """M5: the date check no longer leaks."""
+
+    def test_month_day_numeric(self):
+        self.body("<p>Third Thursday, 6:00 PM; next one 12/18</p>")
+        self.assertFails("printed date '12/18'")
+
+    def test_ordinal_with_month_later(self):
+        self.body("<p>Moved to the 21st this December.</p>")
+        self.assertFails("printed date '21st this December'")
+
+    def test_weekday_ordinal(self):
+        self.body("<p>Thursday the 18th is cancelled.</p>")
+        self.assertFails("printed date 'Thursday the 18th'")
+
+    def test_dotted_iso(self):
+        self.body("<p>2026.12.18 cancelled</p>")
+        self.assertFails("printed date '2026.12.18'")
+
+    def test_month_and_future_year(self):
+        self.body("<p>Starting January 2099 the net moves.</p>")
+        self.assertFails("printed date 'January 2099'")
+
+    def test_external_files_link_does_not_exempt(self):
+        self.body('<p><a href="https://example.org/files/x.pdf">Class</a> on Saturday, March 14.</p>')
+        self.assertFails("printed date")
+
+    def test_file_link_exempts_only_the_version(self):
+        self.body('<p>The next orientation is December 12. <a href="/files/acs-task-book.docx">ACS task book</a> (Word document, August 9, 2024)</p>')
+        self.assertFails("printed date 'December 12'")
+
+    def test_unlisted_date_beside_file_link(self):
+        self.body('<p><a href="/files/acs-task-book.docx">ACS task book</a> (Word document, March 1, 2026)</p>')
+        self.assertFails("printed date 'March 1'")
+
+    def test_version_away_from_file_link(self):
+        self.body("<p>Updated August 9, 2024.</p>")
+        self.assertFails("printed date 'August 9'")
+
+    def test_version_beside_file_link_under_base(self):
+        base = "/spokares-static"
+        self.body(f'<p><a href="{base}/files/acs-task-book.docx">ACS task book</a> (Word document, August 9, 2024)</p>',
+                  rel="about/index.html")
+        out = self.site.run("--base", base)[1]
+        self.assertNotIn("printed date", out)
+
+    def test_history_is_fine(self):
+        self.body("<p>In August 2023, and in 1999, 2004, 2017 and 2019; 2nd and 4th Tuesdays; "
+                  "Rev. 2019/2020; 24/7; IS-100; 147.300 MHz; 4 of 5 members.</p>")
+        self.assertPasses()
+
+
+class Leadership(Case):
+    """M6: placeholder words in the leadership tables."""
+
+    def table(self, call):
+        return (f'<figure class="wp-block-table table roles"><table><tbody><tr><td>AEC, Hospital</td>'
+                f"<td>{call}</td></tr></tbody></table></figure>")
+
+    def test_vacant(self):
+        self.body(self.table("vacant"), rel="about/index.html")
+        self.assertFails('the leadership table says "vacant"')
+
+    def test_tbd(self):
+        self.body(self.table("TBD"), rel="about/index.html")
+        self.assertFails('the leadership table says "TBD"')
+
+    def test_open(self):
+        self.body(self.table("(open)"), rel="about/index.html")
+        self.assertFails('the leadership table says "open"')
+
+    def test_call_signs_pass(self):
+        self.body(self.table("AA7RT, W7UWC") + '<h2 id="contact">Contact</h2>', rel="about/index.html")
+        self.assertPasses()
+
+
+class InjectedHtml(Case):
+    """M7: elements and attributes the site never uses."""
+
+    def test_base(self):
+        self.body('<div><base href="https://evil.example/"></div>')
+        self.assertFails("<base> is not allowed")
+
+    def test_meta_refresh(self):
+        self.body('<div><meta http-equiv="refresh" content="0;url=https://evil.example/"></div>')
+        self.assertFails("<meta http-equiv> is not allowed")
+
+    def test_form(self):
+        self.body('<form action="https://evil.example/"><input name="p" type="password"></form>')
+        self.assertFails("<form> is not allowed")
+
+    def test_iframe(self):
+        self.body('<iframe title="x"></iframe>')
+        self.assertFails("<iframe> is not allowed")
+
+    def test_object(self):
+        self.body('<object title="x"></object>')
+        self.assertFails("<object> is not allowed")
+
+    def test_embed(self):
+        self.body('<embed title="x">')
+        self.assertFails("<embed> is not allowed")
+
+    def test_svg_animate(self):
+        self.body('<svg><a><animate attributeName="href" values="javascript:alert(1)"/><text>x</text></a></svg>')
+        self.assertFails("<animate> is not allowed")
+
+    def test_svg_set(self):
+        self.body('<svg><set attributeName="href" to="https://evil.example/"/></svg>')
+        self.assertFails("<set> is not allowed")
+
+    def test_event_handler(self):
+        self.body('<img alt="" src="/img/seal.png" onerror="alert(1)">')
+        self.assertFails("the event handler onerror= is not allowed")
+
+    def test_javascript_in_any_attribute(self):
+        self.body('<svg><a xlink:href=" java\tscript:alert(1)"><text>x</text></a></svg>')
+        self.assertFails("a javascript: value in xlink:href= is not allowed")
+
+    def test_vbscript_href(self):
+        self.body('<p><a href="vbscript:msgbox">x</a></p>')
+        self.assertFails("vbscript")
+
+
+class Wording(Case):
+    """m1: whole words, case-insensitive status phrases, plain messages."""
+
+    def test_next_upgrade_is_fine(self):
+        self.body("<p>Your next upgrade is General class.</p>")
+        self.assertPasses()
+
+    def test_this_weekly_net_is_fine(self):
+        self.body("<p>This weekly net is open to all; Field Day runs this weekend.</p>")
+        self.assertPasses()
+
+    def test_soon_after_is_fine(self):
+        self.body("<p>Soon after you join, you get a badge.</p>")
+        self.assertPasses()
+
+    def test_frn_is_not_a_phone(self):
+        self.body("<p>An FRN looks like 0012345678.</p>")
+        self.assertPasses()
+
+    def test_posted_soon(self):
+        self.body("<p>The new schedule will be posted soon.</p>")
+        out = self.assertFails('"posted soon" goes out of date')
+        self.assertIn("will be posted soon", out)
+
+    def test_available_soon(self):
+        self.body("<p>Photos available soon.</p>")
+        self.assertFails('"available soon"')
+
+    def test_soon_label(self):
+        self.body('<p class="tag">Soon</p>')
+        self.assertFails('"Soon" as a label')
+
+
+class DuplicateIds(Case):
+    def test_duplicate_id(self):
+        self.body('<h2 id="contact">Contact</h2><div id="contact"></div>', rel="about/index.html")
+        self.assertFails('the id "contact" is used more than once')
+
+
+class Email(Case):
+    """m8: the allowed address comes from facts.yaml and must be at spokares.org."""
+
+    def test_address_from_facts(self):
+        self.site.facts.write_text(FACTS.replace("info@spokares.org", "contact@spokares.org"), encoding="utf-8")
+        self.body('<p><a href="mailto:contact@spokares.org">Write</a> or info@spokares.org</p>')
+        out = self.assertFails("e-mail address not allowed: info@spokares.org")
+        self.assertNotIn("contact@spokares.org", out)
+
+    def test_facts_address_off_domain(self):
+        self.site.facts.write_text(FACTS.replace("info@spokares.org", "bob@gmail.com"), encoding="utf-8")
+        self.assertFails("contact.email must be an address at spokares.org")
+
+
+class Stages(Case):
+    """m12: the full checks (default stage 7) run in the tests."""
+
+    def test_missing_page_at_full_stage(self):
+        (self.site.root / "resources/index.html").unlink()
+        self.assertFails("missing page: resources/index.html")
+
+    def test_no_groups_io_link(self):
+        self.body("<p>No group link.</p>" + MEMBERS.split("<p>")[0], rel="members/index.html", title="For members")
+        self.assertFails("expected exactly one groups.io link")
+
+    def test_two_groups_io_links(self):
+        self.body(MEMBERS + '<p><a href="https://spokaneares-acs.groups.io/g/main">again</a></p>',
+                  rel="members/index.html")
+        self.assertFails("expected exactly one groups.io link (on /members/), found 2")
+
+    def test_groups_io_on_another_page(self):
+        self.body('<p><a href="https://spokaneares-acs.groups.io/g/main">group</a></p>')
+        self.assertFails("index.html: groups.io link not allowed here")
+
+
+class Modes(Case):
+    """M8: --preview requires noindex, --live forbids it."""
+
+    def test_live_with_noindex(self):
+        self.assertFails("has noindex, but this is the live build", "--live")
+
+    def test_live_without_noindex(self):
+        for f in self.site.root.rglob("*.html"):
+            f.write_text(f.read_text(encoding="utf-8").replace('<meta name="robots" content="noindex">', ""),
+                         encoding="utf-8")
+        self.assertPasses("--live")
+        self.assertFails("missing <meta name=\"robots\"", "--preview")
+
+
+class Arguments(Case):
+    """m12: bad arguments and bad input give one line, never a traceback."""
+
+    def one_line(self, *args, facts=True):
+        code, out = self.site.run(*args, facts=facts)
+        self.assertNotEqual(code, 0)
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(len(out.strip().splitlines()), 1, out)
+        return out
+
+    def test_no_arguments(self):
+        r = subprocess.run([sys.executable, str(CHECKER)], capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("usage", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_bad_stage(self):
+        self.assertIn("--stage must be a number", self.one_line("--stage", "x"))
+
+    def test_stage_without_value(self):
+        self.assertIn("--stage needs a value", self.one_line("--stage"))
+
+    def test_unknown_option(self):
+        self.assertIn("unknown option --nope", self.one_line("--nope"))
+
+    def test_base_without_slash(self):
+        self.assertIn("--base must start with a slash", self.one_line("--base", "spokares-static"))
+
+    def test_missing_folder(self):
+        r = subprocess.run([sys.executable, str(CHECKER), str(self.site.root / "nope")], capture_output=True, text=True)
+        self.assertIn("is not a folder", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_not_utf8_page(self):
+        (self.site.root / "index.html").write_bytes(b"<html>caf\xe9</html>")
+        out = self.assertFails("index.html: is not UTF-8 text")
+        self.assertNotIn("Traceback", out)
+
+    def test_bad_facts_file(self):
+        self.site.facts.write_text('contact:\n  email: "info@spokares.org\n', encoding="utf-8")
+        self.assertFails("cannot read the facts file")
 
 
 if __name__ == "__main__":
