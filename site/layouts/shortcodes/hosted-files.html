@@ -1,0 +1,10 @@
+{{- /* The files kept on the site (the "files" list in data/facts.yaml), one line
+       each: the title linked to /files/<file>, with its kind and version under it.
+       No arguments. A missing field stops the build. */ -}}
+<ul class="lines">
+{{- range partial "fact.html" "files" -}}
+  {{- $f := partial "file.html" .id -}}
+  <li><a class="doc-title" href="{{ partial "url.html" (printf "/files/%s" $f.file) }}">{{ $f.title }}</a><span class="doc-note">{{ $f.kind }}, {{ $f.version }}</span></li>
+{{- end -}}
+</ul>
+{{- /* no trailing newline */ -}}

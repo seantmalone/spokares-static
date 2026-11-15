@@ -1,0 +1,16 @@
+{{- /* One block inside a grid (the members pages' two-column rows): a <section>
+       with no inner wrapper, holding Markdown. Use it inside {{< section >}}
+       whose inner wrapper is the grid, for example:
+
+         {{< section class="members-row" inner="wrap ex-grid" >}}
+         {{< column class="ex-section" >}}
+         ## Heading {#id .m-head}
+         Markdown…
+         {{< /column >}}
+         {{< /section >}}
+
+       id and class are optional. Other shortcodes go on a line of their own.
+       The output is kept on one line so {{< section >}} can hold it. */ -}}
+{{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position) -}}
+<section{{ with .Get "id" }} id="{{ . }}"{{ end }}{{ with .Get "class" }} class="{{ . }}"{{ end }}>{{ replace $html "\n" " " | safeHTML }}</section>
+{{- /* no trailing newline */ -}}
