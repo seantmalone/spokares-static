@@ -18,11 +18,16 @@
 {{- $opens := or .opens (strings.TrimPrefix "www." (urls.Parse $url).Hostname) -}}
 {{- $class := trim (printf "%s ext" (or .class "")) " " -}}
 {{- /* The last word and the arrow stay together on one line (.ext__tail).
-       A button (class btn) is one flex line already and keeps the plain form. */ -}}
+       A button (class btn) keeps its arrow on its own; when a narrow screen
+       wraps its label, the last two words stay together, so one short word
+       is never left alone on the second line. */ -}}
 {{- $inner := htmlEscape $text -}}
+{{- $words := split $text " " -}}
 {{- if not (in (split $class " ") "btn") -}}
-  {{- $words := split $text " " -}}
   {{- $last := index $words (sub (len $words) 1) -}}
   {{- $inner = printf `%s<span class="ext__tail">%s</span>` (htmlEscape (strings.TrimSuffix $last $text)) (htmlEscape $last) -}}
+{{- else if ge (len $words) 3 -}}
+  {{- $tail := delimit (last 2 $words) " " -}}
+  {{- $inner = printf `<span>%s<span class="nobr">%s</span></span>` (htmlEscape (strings.TrimSuffix $tail $text)) (htmlEscape $tail) -}}
 {{- end -}}
 {{- return (printf `<a class="%s" href="%s">%s<span class="vh"> (opens %s)</span></a>` $class (htmlEscape $url) $inner (htmlEscape $opens) | safeHTML) -}}

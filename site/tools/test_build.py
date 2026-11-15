@@ -557,11 +557,25 @@ class Regressions(Build):
         first = re.search(r"\bAECs?\b", body)
         self.assertTrue(body[:first.end()].endswith("Assistant Emergency Coordinators (AECs"), body[first.start() - 80:first.end()])
 
+    def test_winlink_nights_label_weight(self):
+        # G6: the label reads at 600, as "Winlink nights:" did in the WordPress list.
+        css = (SITE / "static/css/site.css").read_text(encoding="utf-8")
+        rules = [m.group(1) for m in re.finditer(r"([^{}]+)\{[^{}]*font-weight:\s*600", css)]
+        self.assertTrue(any("#other-nets strong" in r for r in rules), "no 600 rule for #other-nets strong")
+        self.assertIn('<p id="other-nets"><strong>Winlink nights:</strong>', self.page(self.built(), "how-it-works/index.html"))
+
     def test_form_numbers_do_not_break(self):
         pub = self.built()
         self.assertIn('<span class="nobr">(ICS-213RR)</span>', self.page(pub, "resources/index.html"))
         self.assertIn('<span class="nobr">ICS-213RR</span>', self.page(pub, "members/index.html"))
         self.assertNotIn('nobr"><span class="nobr', self.page(pub, "members/index.html"))
+        # G7: FEMA course numbers in the Resources notes too.
+        res = self.page(pub, "resources/index.html")
+        for n in ("IS-100", "IS-200", "IS-700", "IS-800"):
+            self.assertIn(f'<span class="nobr">{n}</span>', res)
+        self.assertNotIn('nobr"><span class="nobr', res)
+        # G7: on a narrow phone the group button wraps before "on groups.io", never leaving "groups.io" alone.
+        self.assertIn('<span>Members’ group <span class="nobr">on groups.io</span></span>', self.page(pub, "members/index.html"))
 
 
 class BuildScript(unittest.TestCase):

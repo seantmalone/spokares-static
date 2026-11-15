@@ -1,9 +1,9 @@
-{{- /* Keeps form numbers such as "ICS-213RR" (with any brackets around
+{{- /* Keeps form and course numbers such as "ICS-213RR" and "IS-700" (with any brackets around
        them) on one line (no break at the hyphen) in rendered HTML: each one in a text node is wrapped in
        <span class="nobr">. Usage: partial "nobreak.html" $html. Used for
        Markdown blocks and the Resources list. */ -}}
 {{- $out := string . -}}
-{{- range uniq (findRE `>[^<]*\bICS-\d[^<]*<` $out) -}}
-  {{- $out = replace $out . (replaceRE `(\(?)\bICS-(\d+[A-Z]*)(\)?)` `<span class="nobr">${1}ICS-${2}${3}</span>` .) -}}
+{{- range uniq (findRE `>[^<]*\b(?:ICS|IS)-\d[^<]*<` $out) -}}
+  {{- $out = replace $out . (replaceRE `(\(?)\b(ICS|IS)-(\d+[A-Z]*)(\)?)` `<span class="nobr">${1}${2}-${3}${4}</span>` .) -}}
 {{- end -}}
 {{- return ($out | safeHTML) -}}
