@@ -1,19 +1,20 @@
 # Build the site with a pinned Hugo, check it, and publish the review
-# preview to GitHub Pages. Runs on every commit to main.
+# preview to GitHub Pages. A commit to main builds, checks and publishes.
+# A pull request (including one from a fork) only builds and checks: it
+# gets a read-only token, no secrets, and the publish job does not run.
 name: Preview
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('check-{0}', github.ref) || 'pages' }}
   cancel-in-progress: false
 
 env:
@@ -25,11 +26,15 @@ jobs:
     name: Build and check
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - id: pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Install Hugo (pinned, checksum verified)
         run: |
@@ -38,28 +43,29 @@ jobs:
           echo "$HUGO_SHA256  $RUNNER_TEMP/$f" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/hugo" && tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/hugo" hugo
           echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
-      - name: Test the site checker
-        run: python3 site/tools/test_check_site.py
-      - name: Build
+      - name: Build and check (site/tools/build.sh)
         env:
-          BASE_URL: ${{ steps.pages.outputs.base_url }}
-        run: hugo --source site --cleanDestinationDir --panicOnWarning --baseURL "$BASE_URL/"
-      - name: Check the built site
-        env:
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: python3 site/tools/check_site.py site/public --base "$BASE_PATH"
+          # On a pull request there is no Pages address; the preview path is used.
+          BASE_URL: ${{ steps.pages.outputs.base_url || 'http://localhost/spokares-static' }}
+        run: site/tools/build.sh "$BASE_URL/"
       - name: Report on outside links (does not block)
         continue-on-error: true
-        run: python3 site/tools/check_links.py site/public
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        timeout-minutes: 4
+        run: python3 site/tools/check_links.py site/public --strict
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site/public
 
   deploy:
     name: Publish the preview
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

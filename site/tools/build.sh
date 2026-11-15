@@ -1,0 +1,42 @@
+#!/bin/sh
+# Builds and checks the site: the one command CI and people both run.
+#
+#   site/tools/build.sh                        preview build for http://localhost/spokares-static/
+#   site/tools/build.sh https://<account>.github.io/spokares-static/   (what CI runs)
+#   site/tools/build.sh https://spokares.org/ --live                   the real site, no noindex
+#
+# Steps, stopping at the first that fails:
+#   1. check_data.py   facts.yaml and resources.yaml (one plain line per mistake)
+#   2. hugo            the build, warnings treated as errors
+#   3. check_site.py   the built pages and hosted files
+#   4. the self-tests of the three checkers and of the templates
+# The output is in site/public. Needs python3 and hugo 0.164.0, nothing else.
+set -eu
+cd "$(dirname "$0")/../.."
+
+base_url="${1:-http://localhost/spokares-static/}"
+mode="--preview"
+preview=true
+if [ "${2:-}" = "--live" ]; then mode="--live"; preview=false; fi
+case "$base_url" in */) ;; *) base_url="$base_url/" ;; esac
+base_path=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).path.rstrip("/"))' "$base_url")
+
+echo "== 1. Checking the data files"
+python3 site/tools/check_data.py
+
+echo "== 2. Building with Hugo for $base_url"
+HUGO_PARAMS_PREVIEW=$preview hugo --source site --cleanDestinationDir --panicOnWarning --baseURL "$base_url"
+
+echo "== 3. Checking the built site"
+if [ -n "$base_path" ]; then
+  python3 site/tools/check_site.py site/public --base "$base_path" "$mode"
+else
+  python3 site/tools/check_site.py site/public "$mode"
+fi
+
+echo "== 4. Self-tests of the checkers and templates"
+python3 site/tools/test_check_data.py -q
+python3 site/tools/test_check_site.py -q
+python3 site/tools/test_check_links.py -q
+python3 site/tools/test_build.py -q
+echo "== All checks passed. The site is in site/public."
