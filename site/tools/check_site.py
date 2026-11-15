@@ -401,18 +401,26 @@ def docx_text(path, depth=0):
     return "\n".join(out), (meta if depth == 0 else {}), None
 
 
-def pdf_parts(path):
+# Streams that are not page text: embedded fonts and images.
+PDF_NOT_TEXT = re.compile(rb"/Length[123]\b|/Subtype\s*/(?:Type1C|CIDFontType0C|OpenType|Image|XML)\b")
+
+
+def pdf_parts(path, text_only=False):
     """The whole file, then each stream: Flate streams decompressed, unfiltered
     ones as they are. Other filters (ASCII85, LZW...) and encryption are not
-    read; that is why every PDF gets a notice."""
+    read; that is why every PDF gets a notice. text_only leaves out the
+    streams that cannot hold page text (fonts, images, XMP)."""
     b = path.read_bytes()
     parts = [b]
     for m in re.finditer(rb"stream\r?\n(.*?)endstream", b, re.S):
+        head = b[max(0, m.start() - 400):m.start()]
+        head = head[head.rfind(b" obj") + 1:]
+        if text_only and PDF_NOT_TEXT.search(head):
+            continue
         try:
             parts.append(zlib.decompress(m.group(1)))
         except zlib.error:
-            head = b[max(0, m.start() - 400):m.start()]
-            if b"/Filter" not in head[head.rfind(b" obj") + 1:]:
+            if b"/Filter" not in head:
                 parts.append(m.group(1))
     return parts
 
@@ -732,7 +740,7 @@ def main():
         elif name.lower().endswith(".pdf"):
             notes.append(f"note: {rel}: {PDF_NOTE}")
             parts = pdf_parts(f)
-            text = pdf_page_text(parts)
+            text = pdf_page_text(pdf_parts(f, text_only=True))
             for e in sorted((pdf_emails(parts) | emails(text)) - allowed_emails):
                 problems.append(f"{rel}: e-mail address not allowed: {e}")
             m = PHONE.search(norm(text))

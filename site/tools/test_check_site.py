@@ -716,6 +716,15 @@ class PdfFiles(Case):
                              b"[(509) -250 (-555-1234)] TJ ET", compress=compress))
                 self.assertFails("files/arrl-ares-task-book.pdf: something that looks like a phone number: '509-555-1234'")
 
+    def test_font_programs_are_not_read_as_text(self):
+        # An embedded font's bytes can look like "(...) Tj" by chance; they are not page text.
+        import zlib
+        font = zlib.compress(b"junk (5095551234) Tj junk")
+        self.put(b"%PDF-1.7\n5 0 obj<</Length " + str(len(font)).encode() + b"/Length1 20/Filter/FlateDecode>>stream\n"
+                 + font + b"\nendstream\nendobj\ntrailer<<>>\n%%EOF\n")
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+
     def test_drawing_numbers_are_not_phones(self):
         self.put(pdf(b"<</Type/Catalog>>", stream=b"q 509 555 1234 0 0 cm 300 400 m 612 792 l S Q", compress=True))
         code, out = self.site.run()
