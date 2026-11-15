@@ -1,0 +1,11 @@
+{{- /* The page's rendered content. Shortcodes written on consecutive lines in a
+       content file form one Markdown paragraph, so Goldmark wraps their HTML in
+       <p>…</p> (invalid around a <div> or <section>, and the browser then leaves
+       empty paragraphs behind). Those wrapping tags are removed here. A real
+       paragraph never starts with a block tag (raw HTML is not allowed in
+       Markdown here), so nothing else is touched. Usage: {{ partial "content.html" . }} */ -}}
+{{- $block := `div|section|figure|nav|aside|header|footer|table|ul|ol|dl|p|h[1-6]` -}}
+{{- $c := string .Content -}}
+{{- $c = replaceRE (printf `<p>(<(?:%s)[\s>])` $block) "$1" $c -}}
+{{- $c = replaceRE (printf `(</(?:%s)>)</p>` $block) "$1" $c -}}
+{{- return ($c | safeHTML) -}}

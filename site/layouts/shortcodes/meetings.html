@@ -1,0 +1,12 @@
+{{- /* The in-person meetings (spokares/meetings, view "home"): rules only, never dates. No arguments. */ -}}
+{{- $name := partial "fact.html" "place.name" -}}
+{{- $street := partial "fact.html" "place.street" -}}
+{{- $city := partial "fact.html" "place.city" -}}
+{{- $day := partial "fact.html" "net.day" -}}
+<div class="is-view-home wp-block-spokares-meetings"><p><strong>In person</strong> at {{ $name }}, {{ $street }}, {{ index (split $city ",") 0 }}:</p><ul class="meetings">
+  {{- range partial "fact.html" "meetings" }}
+  {{- if not (and .name .when) }}{{ errorf "facts.yaml: every meeting needs a name and a when" }}{{ end }}
+  <li><span><strong>{{ .name }}:</strong> {{ .when }}{{ with .extra }}; {{ . }}{{ end }}.</span></li>
+  {{- end }}
+</ul><p class="meetings__note">Changes are announced on the {{ $day }} net.</p></div>
+{{- /* no trailing newline */ -}}

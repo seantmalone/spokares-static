@@ -1,0 +1,23 @@
+{{- /* About's two leadership tables (core Table, class "table roles", as WordPress printed them). No arguments. */ -}}
+{{- $unit := partial "fact.html" "leadership.unit" -}}
+{{- $section := partial "fact.html" "leadership.section" -}}
+{{- /* The first "AEC" is spelled out for screen readers and on hover, as on the WordPress site. */ -}}
+{{- $abbr := false -}}
+<figure class="wp-block-table table roles has-vh-caption"><table><thead><tr><th scope="col">Spokane County unit</th><th scope="col">Call sign</th></tr></thead><tbody>
+  {{- range $unit }}
+  {{- if not (and .role .callsign) }}{{ errorf "facts.yaml: every leadership line needs a role and a callsign" }}{{ end }}
+  {{- $role := .role | htmlEscape }}
+  {{- if and (not $abbr) (strings.Contains $role "AEC") }}
+    {{- $role = replaceRE `\bAEC\b` `<abbr title="Assistant Emergency Coordinator">AEC</abbr>` $role 1 }}
+    {{- $abbr = true }}
+  {{- end }}
+  <tr><td>{{ $role | safeHTML }}</td><td>{{ .callsign }}</td></tr>
+  {{- end }}
+</tbody></table><figcaption class="wp-element-caption">Spokane County unit leadership</figcaption></figure>
+<figure class="wp-block-table table roles has-vh-caption"><table><thead><tr><th scope="col">Eastern Washington Section</th><th scope="col">Call sign</th></tr></thead><tbody>
+  {{- range $section }}
+  {{- if not (and .role .callsign) }}{{ errorf "facts.yaml: every leadership line needs a role and a callsign" }}{{ end }}
+  <tr><td>{{ .role }}</td><td>{{ .callsign }}</td></tr>
+  {{- end }}
+</tbody></table><figcaption class="wp-element-caption">Section and district leadership</figcaption></figure>
+{{- /* no trailing newline */ -}}

@@ -1,0 +1,68 @@
+# The facts on spokares.org that can change.
+# To change one, edit the value after the colon and commit.
+# Keep the quotes. Do not rename the labels on the left.
+
+net:
+  day: "Tuesday"
+  time: "8:00 PM"
+
+repeater:
+  primary:
+    call: "W7GBU"
+    freq: "147.300 MHz"
+    offset: "+600 kHz"
+    tone: "100 Hz"
+  alternate:
+    freq: "146.880 MHz"
+    offset: "-600 kHz"
+    tone: "123 Hz"
+  weather:
+    call: "WXL86"
+    freq: "162.400 MHz"
+
+# Winlink nights: which Tuesdays of the month.
+winlink_nights: "second and fourth Tuesdays"
+
+# Meetings. "when" is the rule exactly as it should read on the site.
+# Never put a date here.
+meetings:
+  - name: "Second Saturday Workshop"
+    when: "Second Saturday of each month, 9:00 AM to noon"
+    extra: "then a Winlink workshop, 12:30 to 3:30 PM"
+  - name: "Third Thursday training meeting"
+    when: "Third Thursday of each month, 6:00 PM"
+
+place:
+  name: "Spokane County Emergency Management"
+  street: "1121 W Gardner Ave"
+  city: "Spokane, WA 99260"
+
+# Leadership. One line per position. Remove a line when a position is empty;
+# do not write "open" or "vacant". "AEC" is Assistant Emergency Coordinator
+# (the site spells it out the first time).
+leadership:
+  unit:
+    - role: "Emergency Coordinator; website admin"
+      callsign: "W7TSC"
+    - role: "AEC, Public Events; Winlink coordinator"
+      callsign: "NV2Z"
+    - role: "AEC, Hospital Coordinator"
+      callsign: "K7MHG"
+    - role: "AEC, Logistics & Comms; W7GBU license trustee"
+      callsign: "K7DSR"
+    - role: "AEC, Net Manager"
+      callsign: "AG7QP"
+    - role: "SKYWARN representatives"
+      callsign: "AA7RT, W7UWC"
+  section:
+    - role: "ARRL Section Manager"
+      callsign: "KA7LJQ"
+    - role: "Section Emergency Coordinator"
+      callsign: "AG7QP"
+    - role: "ARES District 9 Emergency Coordinator"
+      callsign: "WA7EC"
+
+contact:
+  email: "info@spokares.org"
+
+groupsio: "https://spokaneares-acs.groups.io/g/main"

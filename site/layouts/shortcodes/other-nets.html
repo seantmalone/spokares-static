@@ -1,0 +1,4 @@
+{{- /* How it works' "Other nets" list (spokares/net, view "other-nets"): Winlink nights only. No arguments. */ -}}
+{{- $nights := partial "fact.html" "winlink_nights" -}}
+<div class="is-view-other-nets wp-block-spokares-net"><ul class="lines"><li><strong>Winlink nights:</strong> {{ $nights }}; net control gives a Winlink assignment during the net.</li></ul></div>
+{{- /* no trailing newline */ -}}

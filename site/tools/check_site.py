@@ -32,6 +32,8 @@ FORBIDDEN = [
     "wp-includes",
 ]
 FORBIDDEN_WORDS = [r"\bSoon\b", r"\bNext: "]
+FACTCHECK = ["147.300", "100 Hz", "8:00 PM", "Second Saturday", "Third Thursday",
+             "1121 W Gardner Ave", "W7TSC", "info@spokares.org"]
 GROUPS_IO = "https://spokaneares-acs.groups.io/g/main"
 PHONE = re.compile(r"\(?\b\d{3}\)?[-. ]\d{3}[-. ]\d{4}\b")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
@@ -184,6 +186,15 @@ def main():
             u = urlparse(row["new_target"])
             if not target_ok(u.path, u.fragment):
                 problems.append(f"repoint.csv: target does not exist: {row['new_target']}")
+
+    fc = root / "factcheck" / "index.html"
+    if stage == 2:
+        body = fc.read_text(encoding="utf-8") if fc.is_file() else ""
+        for needle in FACTCHECK:
+            if needle not in body:
+                problems.append(f"factcheck: {needle!r} not rendered")
+    elif fc.exists():
+        problems.append("factcheck page must not ship")
 
     for line in problems:
         print(line)

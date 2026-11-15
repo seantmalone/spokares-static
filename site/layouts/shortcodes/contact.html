@@ -1,0 +1,4 @@
+{{- /* The contact address (About, #contact). No arguments. */ -}}
+{{- $e := partial "fact.html" "contact.email" -}}
+<p>Write to <a href="mailto:{{ $e }}">{{ $e }}</a>.</p>
+{{- /* no trailing newline */ -}}

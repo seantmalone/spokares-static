@@ -1,0 +1,9 @@
+{{- /* {{ partial "fact.html" "net.time" }} returns the value at that dotted path in
+       data/facts.yaml and stops the build when it is missing or empty. */ -}}
+{{- $v := hugo.Data.facts -}}
+{{- range split . "." -}}
+  {{- if not (reflect.IsMap $v) -}}{{- errorf "facts.yaml: missing %q" $ -}}{{- end -}}
+  {{- $v = index $v . -}}
+{{- end -}}
+{{- if not $v -}}{{- errorf "facts.yaml: missing %q" $ -}}{{- end -}}
+{{- return $v -}}
