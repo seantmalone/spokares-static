@@ -654,6 +654,74 @@ class DocumentPeople(Case):
         self.assertPasses()
 
 
+FIXTURE_PDF = Path(__file__).resolve().parent / "fixtures" / "files" / "arrl-ares-task-book.pdf"
+NOTE = ("note: files/arrl-ares-task-book.pdf: only a PDF's author fields can be checked; open it and make sure it "
+        "holds no personal contact details")
+
+
+def pdf(*objects, trailer=b"", stream=None, compress=False):
+    """A small PDF: numbered objects, an optional content stream, an optional trailer."""
+    import zlib
+    body = b"%PDF-1.7\n"
+    for i, o in enumerate(objects, 1):
+        body += f"{i} 0 obj\n".encode() + o + b"\nendobj\n"
+    if stream is not None:
+        data = zlib.compress(stream) if compress else stream
+        filt = b"/Filter/FlateDecode" if compress else b""
+        body += b"90 0 obj<</Length " + str(len(data)).encode() + filt + b">>stream\n" + data + b"\nendstream\nendobj\n"
+    return body + b"trailer<<" + trailer + b">>\n%%EOF\n"
+
+
+class PdfFiles(Case):
+    """T2: what can be checked in a PDF is checked; the rest is said plainly."""
+
+    def put(self, data):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf", data)
+
+    def test_every_pdf_gets_the_notice_and_passes(self):
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn(NOTE, out)
+
+    def test_notice_is_an_annotation_in_ci(self):
+        import os
+        r = subprocess.run([sys.executable, str(CHECKER), str(self.site.root), "--facts", str(self.site.facts)],
+                           capture_output=True, text=True, env={**os.environ, "GITHUB_ACTIONS": "true"})
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("::notice::" + NOTE, r.stdout)
+
+    def test_the_hosted_arrl_task_book_passes_with_the_notice(self):
+        self.put(FIXTURE_PDF.read_bytes())
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn(NOTE, out)
+
+    def test_real_looking_pdf_with_an_author_is_refused(self):
+        # The Info dictionary points at its Author string (an indirect reference), as Word and Acrobat write it.
+        self.put(pdf(b"<</Title(Task book)/Author 2 0 R/Creator(Microsoft Word)>>", b"(Jane Member)",
+                     b"<</Type/Catalog>>", trailer=b"/Root 3 0 R/Info 1 0 R"))
+        self.assertFails("files/arrl-ares-task-book.pdf: the PDF's author is 'Jane Member'")
+
+    def test_xmp_author_in_attribute_form(self):
+        for xmp in (b'<rdf:Description pdf:Author="Jane Member"/>', b"<rdf:Description dc:creator='Jane Member'/>",
+                    b"<pdf:Author>Jane Member</pdf:Author>"):
+            with self.subTest(xmp=xmp):
+                self.put(pdf(b"<</Type/Catalog>>", stream=b"<x:xmpmeta>" + xmp + b"</x:xmpmeta>"))
+                self.assertFails("the PDF's author is 'Jane Member'")
+
+    def test_phone_in_page_text(self):
+        for compress in (False, True):
+            with self.subTest(compress=compress):
+                self.put(pdf(b"<</Type/Catalog>>", stream=b"BT /F1 12 Tf 72 700 Td (Questions? Call Bob at ) Tj "
+                             b"[(509) -250 (-555-1234)] TJ ET", compress=compress))
+                self.assertFails("files/arrl-ares-task-book.pdf: something that looks like a phone number: '509-555-1234'")
+
+    def test_drawing_numbers_are_not_phones(self):
+        self.put(pdf(b"<</Type/Catalog>>", stream=b"q 509 555 1234 0 0 cm 300 400 m 612 792 l S Q", compress=True))
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+
+
 class Dates(Case):
     """M5: the date check no longer leaks."""
 

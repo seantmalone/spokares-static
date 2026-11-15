@@ -25,6 +25,7 @@ import csv
 import datetime
 import html
 import io
+import os
 import re
 import sys
 import zipfile
@@ -401,13 +402,18 @@ def docx_text(path, depth=0):
 
 
 def pdf_parts(path):
+    """The whole file, then each stream: Flate streams decompressed, unfiltered
+    ones as they are. Other filters (ASCII85, LZW...) and encryption are not
+    read; that is why every PDF gets a notice."""
     b = path.read_bytes()
     parts = [b]
     for m in re.finditer(rb"stream\r?\n(.*?)endstream", b, re.S):
         try:
             parts.append(zlib.decompress(m.group(1)))
         except zlib.error:
-            pass
+            head = b[max(0, m.start() - 400):m.start()]
+            if b"/Filter" not in head[head.rfind(b" obj") + 1:]:
+                parts.append(m.group(1))
     return parts
 
 
@@ -419,6 +425,35 @@ def pdf_emails(parts):
     return found
 
 
+PDF_ESCAPES = {b"n": b"\n", b"r": b"\r", b"t": b"\t", b"b": b"\b", b"f": b"\f"}
+
+
+def pdf_literal(raw):
+    """The bytes of a PDF (literal string) body: escapes and line continuations undone."""
+    def sub(m):
+        e = m.group(1)
+        if e[:1].isdigit():
+            return bytes([int(e, 8) & 0xFF])
+        if e in (b"\r\n", b"\r", b"\n"):
+            return b""
+        return PDF_ESCAPES.get(e, e)
+    return re.sub(rb"\\([0-7]{1,3}|\r\n|.)", sub, raw, flags=re.S)
+
+
+def pdf_page_text(parts):
+    """Best effort: the text a page shows with plain (literal) strings, from
+    the Tj, ' , " and TJ operators of the streams. Text kept as glyph numbers
+    (<hex> strings with an embedded font) cannot be read this way."""
+    out = []
+    for p in parts[1:]:
+        for m in re.finditer(rb"\(((?:\\.|[^\\)])*)\)\s*(?:Tj|'|\")|\[((?:\\.|[^\]\\])*)\]\s*TJ", p, re.S):
+            if m.group(1) is not None:
+                out.append(pdf_literal(m.group(1)))
+            else:
+                out.append(b"".join(pdf_literal(x) for x in re.findall(rb"\(((?:\\.|[^\\)])*)\)", m.group(2), re.S)))
+    return b" ".join(out).decode("latin-1")
+
+
 def pdf_text_string(raw):
     """A PDF string: (literal) or <hex>, UTF-16BE when it starts with a byte-order mark."""
     if raw.startswith(b"<"):
@@ -427,28 +462,46 @@ def pdf_text_string(raw):
         except ValueError:
             return ""
     else:
-        data = re.sub(rb"\\([()\\])", rb"\1", raw[1:-1])
+        data = pdf_literal(raw[1:-1])
     if data.startswith(b"\xfe\xff"):
         return data[2:].decode("utf-16-be", "replace")
     return data.decode("latin-1")
 
 
+PDF_STRING = rb"\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>"
+
+
 def pdf_authors(parts):
-    """Best effort: the Author of the Info dictionary and the XMP creators."""
+    """Best effort: the Author of the Info dictionary (written in place or as
+    a reference to another object) and the XMP creators, as elements or as
+    attributes."""
     found = set()
+    whole = parts[0]
     for p in parts:
-        for m in re.finditer(rb"/Author\s*(\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>)", p):
-            found.add(pdf_text_string(m.group(1)).strip())
+        for m in re.finditer(rb"/Author\s*(" + PDF_STRING + rb"|(\d+)\s+(\d+)\s+R)", p):
+            if m.group(2):
+                obj = re.search(rb"(?<!\d)" + m.group(2) + rb"\s+" + m.group(3) + rb"\s+obj\s*(" + PDF_STRING + rb")",
+                                whole)
+                if obj:
+                    found.add(pdf_text_string(obj.group(1)).strip())
+            else:
+                found.add(pdf_text_string(m.group(1)).strip())
         for m in re.finditer(rb"<(dc:creator|pdf:Author)>(.*?)</\1>", p, re.S):
             for li in re.findall(rb"<rdf:li[^>]*>(.*?)</rdf:li>", m.group(2), re.S) or [m.group(2)]:
                 found.add(html.unescape(li.decode("utf-8", "replace")).strip())
-    return {a for a in found if a and a != FILES_AUTHOR}
+        for m in re.finditer(rb"\b(?:dc:creator|pdf:Author)\s*=\s*([\"'])(.*?)\1", p, re.S):
+            found.add(html.unescape(m.group(2).decode("utf-8", "replace")).strip())
+    return {a for a in found if a not in ANONYMOUS}
+
+
+PDF_NOTE = ("only a PDF's author fields can be checked; open it and make sure it holds no personal contact "
+            "details")
 
 
 def main():
     o = parse_args(sys.argv[1:])
     root, stage, base, mode = o["root"], o["stage"], o["base"], o["mode"]
-    problems = []
+    problems, notes = [], []
     pages = {}
     allowed_emails, files_listed, fp = read_facts(o["facts"])
     problems += fp
@@ -677,9 +730,14 @@ def main():
                     problems.append(f"{rel}: the document's {k} is {v!r}; set it to {FILES_AUTHOR!r} "
                                     f"or empty ({CLEAN_WORD})")
         elif name.lower().endswith(".pdf"):
+            notes.append(f"note: {rel}: {PDF_NOTE}")
             parts = pdf_parts(f)
-            for e in sorted(pdf_emails(parts) - allowed_emails):
+            text = pdf_page_text(parts)
+            for e in sorted((pdf_emails(parts) | emails(text)) - allowed_emails):
                 problems.append(f"{rel}: e-mail address not allowed: {e}")
+            m = PHONE.search(norm(text))
+            if m:
+                problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}")
             for a in sorted(pdf_authors(parts)):
                 problems.append(f"{rel}: the PDF's author is {a!r}; it must be empty or {FILES_AUTHOR!r} "
                                 "(remove it in the program that made the PDF, or in Acrobat: File › Properties)")
@@ -715,6 +773,10 @@ def main():
     elif fc.exists():
         problems.append("factcheck page must not ship")
 
+    # Notes say what could not be checked; they do not stop the build.
+    ci = os.environ.get("GITHUB_ACTIONS") == "true"
+    for line in notes:
+        print(("::notice::" if ci else "") + line)
     for line in problems:
         print(line)
     print(f"{len(problems)} problem(s)" if problems else "all checks passed")

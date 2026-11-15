@@ -64,11 +64,21 @@ both changes on a side branch and publish them at once:
    "Merge pull request". The file and its version are published together.
 
 A document anywhere in the site that is not one of the files listed in
-`facts.yaml`, or a listed file that is missing, stops the publish. The check also refuses a
-Word file that names a person: tracked changes, comments, or author fields
-other than "Spokane County ARES-ACS". In Word, accept all changes and delete
-comments, then File › Info › Inspect Document › remove personal information.
-It also refuses any personal e-mail address or phone number inside a file.
+`facts.yaml`, or a listed file that is missing, stops the publish.
+
+Word files are checked inside. The check refuses one that names a person
+(tracked changes, comments, or author fields other than "Spokane County
+ARES-ACS" or "Author") or that holds a personal e-mail address or phone
+number. To clean one in Word: accept all changes, delete all comments, and
+remove personal information from the file's properties (Word for Windows:
+File › Info › Check for Issues › Inspect Document; Word for Mac: Tools ›
+Protect Document › Remove personal information on save), then save and
+upload again.
+
+PDFs are not checked inside: the check can reliably read only a PDF's
+author fields, and prints a note saying so. Read a PDF through before you upload it, and
+make sure it holds no personal names, phone numbers or e-mail addresses.
+For the group's own forms, upload a Word file.
 
 These three files are the only documents the site holds. Everything else is
 a link to whoever keeps it current.
@@ -165,6 +175,9 @@ belongs, or a broken link.
 - [ ] Compare the ARRL ARES Task Book with the one offered at
       <https://www.arrl.org/ares>; if ARRL has a newer one, replace the file
       and its `version`.
+- [ ] Open each PDF in `site/static/files/` and read it through: it must
+      hold no personal names, phone numbers or e-mail addresses (the check
+      cannot read inside a PDF).
 - [ ] Open the latest run under "Actions" and read "Report on outside links".
       Fix or remove any link marked FAIL or SIGN-IN. A link marked CHECK is a
       site that refuses automatic checks: open it yourself in a private
