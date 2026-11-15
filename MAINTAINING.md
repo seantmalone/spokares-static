@@ -221,20 +221,32 @@ belongs, or a broken link.
 
   It runs, stopping at the first failure: `site/tools/check_data.py` (the
   two data files), Hugo with `--panicOnWarning`, `site/tools/check_site.py`
-  (the built pages and hosted files) and the self-tests
-  `site/tools/test_check_data.py`, `site/tools/test_check_site.py`,
-  `site/tools/test_check_links.py` and `site/tools/test_build.py`. The
-  output is in `site/public`. Preview it locally with
-  `hugo server --source site`.
+  (the built pages and hosted files) and `site/tools/self_test.py`, which
+  runs the self-tests `site/tools/test_check_data.py`,
+  `site/tools/test_check_site.py`, `site/tools/test_check_links.py` and
+  `site/tools/test_build.py`. The output is in `site/public`. Preview it
+  locally with `hugo server --source site`. The whole gate takes about
+  twenty seconds.
 - The self-tests never read the live data: they use the frozen copies of
-  the data files, page files and hosted files in `site/tools/fixtures/`, so
-  a yearly edit cannot make them fail. After changing a template, update
-  those copies if a test needs it. `test_build.py` also copies the real
-  site, makes each routine edit (new call signs, net, repeaters, meetings,
-  contact address, hosted files, Resources links) and runs `build.sh` on
-  the copy; those runs skip the self-test step (`BUILD_SKIP_SELF_TESTS=1`),
-  and one of them runs the whole `build.sh`. The whole gate takes about a
-  minute and a half.
+  the data files, page files and hosted files in `site/tools/fixtures/`
+  and the current templates and tools. `self_test.py` makes sure of it: it
+  runs them in a temporary copy of `site/` in which `site/data/`,
+  `site/content/` and `site/static/files/` are replaced by garbage, so no
+  edit to those can make the self-tests fail. If they do fail, the first
+  line says so and that it is not caused by the edit. After changing a
+  template, update the fixture copies if a test needs it.
+- After changing a template or a tool, also run the developer's check
+  (it is not part of the gate; neither `build.sh` nor the workflow runs
+  it):
+
+      sh site/tools/dev-check.sh
+
+  It runs `build.sh`, then `site/tools/live_edits.py`: on a copy of the real
+  site with its real data it makes each routine edit (new call signs, net,
+  repeaters, meetings, contact address, hosted files, Resources links) and
+  each clear mistake, and runs `build.sh` on the copy (steps 1 to 3, with
+  `BUILD_SKIP_SELF_TESTS=1`). Because it reads today's data, it can fail
+  after a data change it did not foresee; then fix the test.
 - Preview or live: `params.preview` in `site/hugo.toml` is `true`, which
   marks every page `noindex`. For the real spokares.org build, turn it off
   with the environment: `site/tools/build.sh https://spokares.org/ --live`

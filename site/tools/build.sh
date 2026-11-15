@@ -9,7 +9,9 @@
 #   1. check_data.py   facts.yaml and resources.yaml (one plain line per mistake)
 #   2. hugo            the build, warnings treated as errors
 #   3. check_site.py   the built pages and hosted files
-#   4. the self-tests of the three checkers and of the templates
+#   4. self_test.py    the self-tests of the checkers and templates, run on a
+#                      copy of site/ whose data, pages and hosted files are
+#                      garbage, so no edit to them can make this step fail
 # The output is in site/public. Needs python3 and hugo 0.164.0, nothing else.
 set -eu
 cd "$(dirname "$0")/../.."
@@ -53,14 +55,14 @@ else
 fi
 
 if [ "${BUILD_SKIP_SELF_TESTS:-}" = 1 ]; then
-  # Only for test_build.py's edit tests, which run this script on a copy of the site.
+  # Only for tests that run this script on a copy of the site (test_build.py's
+  # BuildScript and dev-check.sh's edits): they must not start step 4 again.
   echo "== Steps 1 to 3 passed; self-tests skipped (BUILD_SKIP_SELF_TESTS=1)."
   exit 0
 fi
 
 echo "== 4. Self-tests of the checkers and templates"
-python3 site/tools/test_check_data.py -q
-python3 site/tools/test_check_site.py -q
-python3 site/tools/test_check_links.py -q
-python3 site/tools/test_build.py -q
+if ! python3 site/tools/self_test.py; then
+  exit 1
+fi
 echo "== All checks passed. The site is in site/public."
