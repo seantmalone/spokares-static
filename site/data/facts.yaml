@@ -66,3 +66,22 @@ contact:
   email: "info@spokares.org"
 
 groupsio: "https://spokaneares-acs.groups.io/g/main"
+
+# Files kept on the site. To replace one, upload the new file with the
+# same name to site/static/files/ and change the version here.
+files:
+  - id: "ares-application"
+    title: "Spokane County ARES membership application"
+    file: "ares-application.docx"
+    kind: "Word document"
+    version: "November 7, 2024"
+  - id: "acs-task-book"
+    title: "ACS Position Task Book"
+    file: "acs-task-book.docx"
+    kind: "Word document"
+    version: "August 9, 2024"
+  - id: "arrl-ares-task-book"
+    title: "ARRL ARES Task Book"
+    file: "arrl-ares-task-book.pdf"
+    kind: "PDF"
+    version: "July 2024"

@@ -1,0 +1,15 @@
+{{- /* A link to one of the files kept on the site, with its kind and version
+       beside it, read from the "files" list in data/facts.yaml:
+
+         {{< file-link "ares-application" >}}
+
+       gives "Spokane County ARES membership application (Word document,
+       November 7, 2024)" with the title linked to /files/ares-application.docx.
+       It writes a Markdown link, so it can sit in the middle of a sentence inside
+       {{< section >}} or {{< chapter >}} (or use {{% file-link "…" %}} elsewhere).
+       An unknown id stops the build. */ -}}
+{{- $id := .Get 0 -}}
+{{- if not $id }}{{ errorf "file-link: give a file id, e.g. {{< file-link \"ares-application\" >}} (%s)" .Position }}{{ end -}}
+{{- $f := partial "file.html" $id -}}
+[{{ $f.title }}](/files/{{ $f.file }}) ({{ $f.kind }}, {{ $f.version }})
+{{- /* no trailing newline */ -}}

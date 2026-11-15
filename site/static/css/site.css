@@ -1523,3 +1523,7 @@ nav.footer__links li > a:hover { text-decoration-color: var(--amber); text-decor
   .site-header { position: static; }
   body { background: #fff; }
 }
+
+/* Static port (About): a hosted file's kind and version, printed beside the
+   button that opens it (button shortcode with file=…). */
+.buttons .file-meta { font: 400 15.5px/1.55 var(--sans); color: var(--ink-2); }

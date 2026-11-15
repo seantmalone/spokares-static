@@ -1,0 +1,16 @@
+{{- /* One About chapter (section.chapter): a "## Title {#id}" heading and its
+       Markdown. Other shortcodes go on a line of their own inside it.
+
+         {{< chapter aliases="what-is-ares two-hats" >}}
+         ## ARES and ACS {#ares-acs}
+         …
+         {{< /chapter >}}
+
+       aliases (optional, space-separated) are old anchor names kept so earlier
+       links still land at the top of the chapter. The page's contents list is
+       built from the chapters' "##" headings (layouts/about.html). */ -}}
+{{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) -}}
+<section class="chapter">
+{{- range split (.Get "aliases" | default "") " " }}{{ with . }}<div aria-hidden="true" id="{{ . }}" class="wp-block-spacer anchor-alias"></div>{{ end }}{{ end -}}
+{{ replace $html "\n" " " | safeHTML }}</section>
+{{- /* no trailing newline */ -}}

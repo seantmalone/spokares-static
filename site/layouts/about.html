@@ -1,0 +1,32 @@
+{{- /* About: the dawn page head, then the long read with its contents list.
+       The list is built from the page's chapter headings: every <h2> with an id,
+       in order. A shorter label for a chapter can be given in front matter
+       (toc_labels: { legal-basis: "Legal basis" }); otherwise the heading text
+       is used. static/js/toc.js marks the chapter you are reading and shows the
+       phone "On this page" button. */ -}}
+{{ define "main" }}
+{{- $content := partial "content.html" . -}}
+{{- $labels := .Params.toc_labels | default dict -}}
+{{- $items := slice -}}
+{{- range findRESubmatch `<h2[^>]*\sid="([^"]+)"[^>]*>([\s\S]*?)</h2>` (string $content) -}}
+  {{- $id := index . 1 -}}
+  {{- $items = $items | append (dict "id" $id "label" (index $labels $id | default (index . 2 | plainify | htmlUnescape | strings.TrimSpace))) -}}
+{{- end -}}
+{{- if not $items }}{{ errorf "about: no chapter headings found for the contents list" }}{{ end -}}
+{{- range $id, $_ := $labels }}{{ if not (where $items "id" $id) }}{{ errorf "about: toc_labels names %q, but no chapter heading has that id" $id }}{{ end }}{{ end -}}
+{{- $title := "On this page" -}}
+{{- $list := "" -}}
+{{- range $items }}{{ $list = printf "%s<li><a href=\"#%s\">%s</a></li>" $list .id (.label | htmlEscape) }}{{ end -}}
+{{- $list = printf "<ol>%s</ol>" $list | safeHTML -}}
+<div class="entry-content page-sections">
+<div aria-hidden="true" class="wp-block-spacer dawn-sky about-sky"></div>
+<section class="bg-dawn about-head"><div class="wrap"><div class="about-head__main"><h1>{{ .Title }}</h1>{{ with .Params.lede }}<p class="lede">{{ . }}</p>{{ end }}</div></div></section>
+<div class="about-body"><div class="wrap longread">
+<div class="longread__aside"><div class="wp-block-spokares-toc"><nav class="toc toc--side" aria-labelledby="toc-title"><p class="toc__title" id="toc-title">{{ $title }}</p>{{ $list }}<span class="toc__rail" aria-hidden="true"></span></nav><details class="toc-mobile"><summary>{{ $title }}</summary><nav class="toc" aria-label="{{ $title }}">{{ $list }}</nav></details><button class="btn btn--ink contents-fab" type="button" hidden><svg class="icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>{{ $title }}</button></div></div>
+<div class="longread__main prose">
+{{ $content }}
+</div>
+</div></div>
+</div>
+<script src="{{ partial "url.html" "/js/toc.js" }}" defer></script>
+{{ end }}
