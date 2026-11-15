@@ -109,23 +109,25 @@ ORD = r"\d{1,2}(?:st|nd|rd|th)"
 _ORDW1 = (r"first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth"
           r"|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth")
 ORDW = rf"(?:(?:twenty|thirty)[-\s](?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)|{_ORDW1})"
-# A fraction or a size, not a date: 5/8-wave, 1/4 wave, 12/24 volt, 1/2 inch.
-UNIT_AFTER = r"(?!-[A-Za-z])(?!\s*(?:wave|volts?|v\b|inch(?:es)?|in\.|miles?|mi\b|meters?|metres?|feet|foot|ft\b)\b)"
-# Printed dates: "Sat, Oct 10", "November 7", "27 June", "Thursday the 18th",
-# "the 21st this December", 2026-11-14, 2026.11.14, 11/14/2026, 12/18.
+# Printed dates, a safety net for the common forms: a month and a day in any
+# capitals ("November 7", "nov 7", "NOV. 7", "Dec-18", "18-Dec", "27 June"), a
+# weekday with a date ("Sat, Oct 10", "Thursday the 18th"), an ordinal near a
+# month ("the 21st this December"), a day in words ("December the
+# eighteenth"), and numbers only with a year (11/14/2026, 12.18.26,
+# 2026-11-14). A bare 1/2 or 3-4 is a fraction, ratio or size, not a date.
 # Month + past year ("August 2023") and bare years are history, not dates.
+_MI = f"(?i:{MONTH})"
 DATE = re.compile(
-    rf"\b{WEEKDAY},?\s+{MONTH}\.?\s+\d"
-    rf"|\b{MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?![\d:])"
-    rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{MONTH}\b"
+    rf"\b{WEEKDAY},?\s+{_MI}\.?\s+\d"
+    rf"|\b{_MI}\.?(?:\s+|-)\d{{1,2}}(?:st|nd|rd|th)?(?![\d:])"
+    rf"|(?<![\d.-])\b\d{{1,2}}(?:st|nd|rd|th)?(?:\s+of\s+|\s+|-){_MI}\b"
     rf"|\b{WEEKDAY}\s+(?:the\s+)?{ORD}\b"
     rf"|\b{ORD}\b[^.;!?|]{{0,25}}?\b{MONTH}\b"
     rf"|\b{MONTH}\b[^.;!?|]{{0,25}}?\b{ORD}\b"
-    rf"|\b{MONTH}\.?\s+(?i:{ORDW})\b"
+    rf"|\b{MONTH}\.?\s+(?:the\s+)?(?i:{ORDW})\b"
     rf"|\b(?i:{ORDW})\s+(?:day\s+)?of\s+{MONTH}\b"
-    r"|\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b"
-    r"|(?<![\d/.-])\d{1,2}[-/.]\d{1,2}[-/.](?:\d{4}|\d{2})(?![\d/.-]?\d)"
-    rf"|(?<![\d/.])(?!9/11\b)(?:0?[1-9]|1[0-2])/(?:0?[1-9]|[12]\d|3[01])(?![\d/]){UNIT_AFTER}"
+    r"|\b\d{4}([-/.])\d{1,2}\1\d{1,2}\b"
+    r"|(?<![\w/.-])(?:0?[1-9]|[12]\d|3[01])([-/.])(?:0?[1-9]|[12]\d|3[01])\2(?:\d{4}|\d{2})(?![\d/.-]?\d)"
 )
 MONTH_YEAR = re.compile(rf"\b{MONTH}\.?,?\s+((?:19|20)\d\d)\b")
 # A date is allowed only as a hosted file's version, written exactly as in
@@ -573,8 +575,9 @@ def main():
                     chunk = chunk.replace(v, " ")
             m = dates_in(chunk)
             if m:
-                problems.append(f"{rel}: printed date {m.group(0)!r} in \"{context(chunk, m)}\" "
-                                "(meetings are rules only; a date may appear only as a hosted file's version)")
+                problems.append(f"{rel}: printed date {m.group(0)!r} in \"{context(chunk, m)}\"; write the rule, "
+                                "not the date: 'Third Thursday of each month' (a date may appear only as a hosted "
+                                "file's version)")
         m = dates_in(norm(" ".join(p.attr_text)))
         if m:
             problems.append(f"{rel}: printed date {m.group(0)!r} in an attribute")

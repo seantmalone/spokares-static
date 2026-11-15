@@ -27,7 +27,9 @@ The site rebuilds and publishes itself in about two minutes.
   `callsign` line). Never write "open", "vacant" or "TBD".
 - Never put a date in this file. Meetings are written as rules, such as
   "Second Saturday of each month, 9:00 AM to noon". The one exception is a
-  file's `version` (see below).
+  file's `version` (see below). The check refuses the common ways of writing
+  a date, such as "December 18" or "12/18/2026", but it is only a safety
+  net: it cannot catch every way, so write the rule yourself.
 - The net day, time and repeater call sign are used on every page that
   mentions them, so change them only in `facts.yaml`.
 - The contact address (`contact.email`) is also printed inside the ARES

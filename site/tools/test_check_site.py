@@ -595,9 +595,10 @@ class DocumentPeople(Case):
 class Dates(Case):
     """M5: the date check no longer leaks."""
 
-    def test_month_day_numeric(self):
-        self.body("<p>Third Thursday, 6:00 PM; next one 12/18</p>")
-        self.assertFails("printed date '12/18'")
+    def test_message_says_how_to_write_it(self):
+        self.body("<p>Training meeting: November 19, 6:00 PM</p>")
+        out = self.assertFails("printed date 'November 19'")
+        self.assertIn("write the rule, not the date: 'Third Thursday of each month'", out)
 
     def test_ordinal_with_month_later(self):
         self.body("<p>Moved to the 21st this December.</p>")
@@ -651,10 +652,23 @@ class Dates(Case):
             self.body(f"<p>{text}</p>")
             self.assertFails("printed date")
 
-    def test_fractions_and_units_are_fine(self):
-        self.body("<p>Bring a 5/8-wave antenna, a 1/4 wave whip and a 12/24 volt supply; a 1/2 inch mast; "
-                  "drills since 9/11.</p>")
-        self.assertPasses()
+    def test_fractions_ratios_and_sizes_are_fine(self):
+        # T4: a bare d/d or d-d without a year is not a date.
+        for text in ["1/2 hour", "2 1/2 hours", "12/24 V", "1/4 in.", "80/40/20 m", "3/8-24 thread", "5/9",
+                     "2/3 majority", "7/24", "Channel 1/2", "next one 12/18", "a 5/8-wave antenna",
+                     "drills since 9/11", "a 1/2 inch mast", "IS-100.c and v1.2.10"]:
+            with self.subTest(text=text):
+                self.body(f"<p>Bring {text}.</p>")
+                self.assertPasses()
+
+    def test_month_and_day_in_any_capitals_and_with_a_hyphen(self):
+        for text, hit in [("Meet november 7.", "november 7"), ("Meet NOV 7.", "NOV 7"), ("Meet Dec-18.", "Dec-18"),
+                          ("Meet 18-Dec.", "18-Dec"), ("Meet December the eighteenth.", "December the eighteenth"),
+                          ("Meet 18-Dec-2026.", "18-Dec"), ("Meet 12/18/26.", "12/18/26"),
+                          ("Meet 2026/12/18.", "2026/12/18"), ("Meet 12.18.2026.", "12.18.2026")]:
+            with self.subTest(text=text):
+                self.body(f"<p>{text}</p>")
+                self.assertFails(f"printed date '{hit}'")
 
     def test_external_files_link_with_a_version_does_not_exempt(self):
         self.body('<p><a href="https://example.org/files/acs-task-book.docx">Task book</a> (Word document, August 9, 2024)</p>')
