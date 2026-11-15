@@ -1,6 +1,6 @@
 ---
 title: "How it works"
-description: "How the Tuesday net runs, how the county activates volunteers, how a message moves, and how members train."
+description: "How the weekly net runs, how the county activates volunteers, how a message moves, and how members train."
 ---
 {{< how-opener >}}
 
@@ -20,8 +20,7 @@ What happens, in order
 5. Simplex, no-tone and cross-band stations, then relays.
 6. Traffic and late check-ins, then net control closes the net.
 {.seq}
-{{< /how-row >}}
-{{< how-row id="other-nets" title="Other nets" level="3" >}}
+
 {{< other-nets >}}
 {{< /how-row >}}
 {{< /section >}}
@@ -30,7 +29,7 @@ What happens, in order
 {{< how-activation-steps >}}
 {{< how-readiness >}}
 {{< how-row id="standing-order-1b" title="When no one has called yet" level="3" >}}
-If communications fail and there are no instructions, the Eastern Washington Section’s Standing Order 1b applies. Safety comes first: no one is asked to leave home or travel. Then send a Washington State Field Situation Report by Winlink.
+If communications fail and there are no instructions, the Eastern Washington Section’s standing order for self-activation applies. Safety comes first: no one is asked to leave home or travel. Then send a Washington State Field Situation Report by Winlink.
 {{< /how-row >}}
 {{< /section >}}
 

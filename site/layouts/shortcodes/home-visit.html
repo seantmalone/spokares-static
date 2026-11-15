@@ -1,8 +1,7 @@
 {{- /* Home "Come visit" (dawn band): the "From home" card and the in-person
        meetings card, side by side. No arguments. The meetings card sits in its
-       own column wrapper (.home-visit__person), as on the WordPress site.
-       #this-week is kept as an anchor for old links. */ -}}
+       own column wrapper (.home-visit__person), as on the WordPress site. */ -}}
 {{- partial "nested.html" (dict "sc" . "edge" "open") -}}
-<section id="visit" class="bg-dawn home-visit"><div aria-hidden="true" id="this-week" class="wp-block-spacer anchor-alias"></div><div class="wrap"><h2 class="home-h2">Come visit</h2><div class="home-visit__grid">{{ partial "net-from-home.html" . }}<div class="home-visit__person">{{ partial "meetings.html" . }}</div></div></div></section>
+<section id="visit" class="bg-dawn home-visit"><div class="wrap"><h2 class="home-h2">Come visit</h2><div class="home-visit__grid">{{ partial "net-from-home.html" . }}<div class="home-visit__person">{{ partial "meetings.html" . }}</div></div></div></section>
 {{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

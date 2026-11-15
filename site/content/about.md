@@ -31,14 +31,12 @@ toc_labels:
 
 ### Agreements {#agreements}
 
-- **Inland Empire VHF Radio Amateurs (IEVHFRA), MOU Revision 5 (2023):** a backup repeater, a second repeater for special nets, and packet paths into Winlink.
-- **National, through the ARRL:** FEMA (2023), American Red Cross (renewed 2021), NWS SKYWARN (1986).
+- A written agreement with the VHF club (IEVHFRA) for a backup repeater, a second repeater for special nets, and packet paths into Winlink.
+- National agreements through the ARRL with FEMA, the American Red Cross and the National Weather Service.
 
 ### How we work with agencies {#for-agencies}
 
 Agencies request support through Spokane County Emergency Management.
-
-{{< button href="/#visit" text="Come to a meeting" class="btn--ghost" >}}
 {{< /chapter >}}
 
 {{< chapter >}}
@@ -52,7 +50,6 @@ Agencies request support through Spokane County Emergency Management.
 {{< chapter >}}
 ## Joining {#membership}
 
-- No membership dues.
 - Members use their own radios, any brand. You need nothing to visit.
 
 ### ARES {#ares-path}
@@ -84,7 +81,7 @@ Task books list what each level requires. The Emergency Coordinator or any AEC s
 Higher levels keep up the New Member requirements. Encouraged: weekly check-ins, monthly meetings, SKYWARN training, the AUXCOMM course.
 {.note}
 
-FEMA courses are free online: [course links](/resources/#training) {{< file-link "acs-task-book" >}}
+[FEMA courses, free online](/resources/#training) {{< file-link "acs-task-book" >}}
 {.linkrow}
 
 ### ARRL ARES levels {#arrl-task-book}
@@ -107,7 +104,7 @@ The Technician exam works like a driver’s written test, except every question 
 
 {{< about-licensing >}}
 
-- **Bring:** photo ID, your FCC Registration Number (FRN, get it before exam day), and your license if upgrading.
+- **Bring:** photo ID, your [FCC Registration Number](/resources/#licensing) (FRN, get it before exam day), and your license if upgrading.
 - **Before you’re licensed:** [listen](/how-it-works/#nets), [visit](/#visit), or take [SKYWARN training](/resources/#weather).
 {{< /chapter >}}
 
@@ -116,7 +113,7 @@ The Technician exam works like a driver’s written test, except every question 
 
 ### The W7GBU story {#w7gbu}
 
-Our call sign honors Ira “Dean” Bula, W7GBU. For years he handed out technical wisdom and friendly advice from the counter at Northwest Electronics. Each morning he led an on-air round table on the repeater that now carries his call. Newly licensed hams found him there, and it became the 7:30 Bunch, which still meets weekday mornings. When the county retired the repeater’s old call sign, the Spokane County ARES-RACES Support Group applied for Dean’s call to inspire its members.
+Our call sign honors Ira “Dean” Bula, W7GBU. For years he handed out technical wisdom and friendly advice from the counter at Northwest Electronics. Each morning he led an on-air round table on the repeater that now carries his call. Newly licensed hams found him there, and the round table became known as the 7:30 Bunch. When the county retired the repeater’s old call sign, the Spokane County ARES-RACES Support Group applied for Dean’s call to inspire its members.
 
 > “He was a person who made a difference in Spokane by making others feel like they could make a difference themselves.”
 {.wp-block-quote .pullquote}
@@ -127,12 +124,9 @@ Our call sign honors Ira “Dean” Bula, W7GBU. For years he handed out technic
 {{< chapter >}}
 ## Contact {#contact}
 
-Come to a meeting or check in on the Tuesday net.
+Come to a meeting or check in on the {{< fact "net.day" >}} net.
 
 {{< contact >}}
-
-- **Joining:** bring the ARES application to a meeting.
-- **Agencies:** request support through Spokane County Emergency Management.
 
 **In person:** see [Come visit](/#visit).
 {{< /chapter >}}

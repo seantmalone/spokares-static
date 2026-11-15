@@ -1,6 +1,8 @@
-{{- /* How it works' "Other nets" list (spokares/net, view "other-nets"): Winlink nights only. No arguments. */ -}}
+{{- /* The Winlink nights, one sentence under the weekly net's steps (How it
+       works). The weeks come from facts.yaml (winlink_nights), the day from
+       net.day. #other-nets is kept as an anchor for old links. No arguments. */ -}}
 {{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $nights := printf "%s %ss" (partial "fact.html" "winlink_nights") (partial "fact.html" "net.day") -}}
-<div class="is-view-other-nets wp-block-spokares-net"><ul class="lines"><li><strong>Winlink nights:</strong> {{ $nights }}; net control gives a Winlink assignment during the net.</li></ul></div>
+<p id="other-nets"><strong>Winlink nights:</strong> on the {{ $nights }}, net control gives a Winlink assignment during the net.</p>
 {{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

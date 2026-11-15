@@ -15,9 +15,6 @@ The weekly net, the members’ group, our forms and what to bring.
 ## The weekly net {#net .m-head}
 
 {{< net-settings >}}
-
-Members take turns as net control.
-{.m-line .hub-open}
 {{< /column >}}
 
 {{< column class="hub-week" >}}
@@ -32,15 +29,12 @@ Members take turns as net control.
 ## Application and task books {#forms .m-head}
 
 {{< hosted-files >}}
-
-Other forms, such as the ICS message forms, are on [Resources](/resources/#forms).
-{.m-line .ex-tips}
 {{< /column >}}
 
 {{< column class="ex-section" >}}
 ## At an exercise {#bring .m-head}
 
-**Bring to every exercise:** your go-kit, charged batteries, a programmed handheld, and [ICS-213, 213RR, 214 and 309](/resources/#forms) forms.
+**Bring to every exercise:** your go-kit, charged batteries, a programmed handheld, [ICS-213, ICS-213RR and ICS-214](/resources/#forms) forms, and ICS-309 log sheets.
 {.m-line .ex-bring}
 
 **After any exercise:** send your logs to the exercise lead. ACS members: get your yearly field operation signed off.
