@@ -15,7 +15,8 @@
 {{- with .Get "file" -}}
   {{- $f := partial "file.html" . -}}
   {{- $href = printf "/files/%s" $f.file -}}
-  {{- $meta = printf "(%s, %s)" $f.kind $f.version -}}
+  {{- /* The version keeps its closing bracket and never wraps inside (narrow phones). */ -}}
+  {{- $meta = printf `(%s, <span class="nobr">%s)</span>` (htmlEscape $f.kind) (htmlEscape $f.version) | safeHTML -}}
 {{- end -}}
 {{- if not $href }}{{ errorf "button: give href or file (%s)" .Position }}{{ end -}}
 {{- if not (or (and (strings.HasPrefix $href "/") (not (strings.HasPrefix $href "//"))) (strings.HasPrefix $href "#") (strings.HasPrefix $href "https://") (strings.HasPrefix $href "mailto:")) -}}

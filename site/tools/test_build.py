@@ -353,6 +353,24 @@ class Regressions(Build):
         self.assertIn("preventScroll: true", js)
         self.assertIn("window.scrollTo(x, y)", js)
 
+    def test_print_hides_decoration_and_closed_controls(self):
+        # T9: rings and the closed "On this page" control do not print.
+        css = (SITE / "static/css/site.css").read_text(encoding="utf-8")
+        hidden = " ".join(m.group(1) for m in re.finditer(r"@media print\s*{((?:[^{}]|{[^{}]*})*)}", css)
+                          if "display: none" in m.group(1))
+        for sel in ("hr.wp-block-separator::before", "hr.wp-block-separator::after", ".chains__team::before",
+                    ".toc-mobile:not([open])"):
+            self.assertIn(sel, hidden, f"{sel} is not hidden in print")
+
+    def test_file_version_date_does_not_wrap(self):
+        # T11: at 320px the note may wrap between kind and date, never inside the date.
+        about = self.page(self.built(), "about/index.html")
+        for note in ('<span class="file-meta">(Word document, <span class="nobr">November 7, 2024)</span></span>',
+                     '<span class="nowrap">(Word document, <span class="nobr">August 9, 2024)</span></span>',
+                     '<span class="nowrap">(PDF, <span class="nobr">July 2024)</span></span>'):
+            if note not in about:
+                self.fail(f"About lacks {note}")
+
     def test_form_numbers_do_not_break(self):
         pub = self.built()
         self.assertIn('<span class="nobr">(ICS-213RR)</span>', self.page(pub, "resources/index.html"))

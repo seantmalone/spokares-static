@@ -1610,6 +1610,8 @@ h2.m-head + .lines, .doc-group__head + .lines { border-top: 0; }
    decorative line or rings in "What we do". */
 @media print {
   .ext::after, .ext__tail::after, .stops::before, .stops::after, .stops > li::before { display: none !important; }
+  hr.wp-block-separator::before, hr.wp-block-separator::after, .chains__team::before,
+  .toc-mobile:not([open]) { display: none !important; }
 }
 /* Round 2: a form number ("ICS-213RR") never breaks at its hyphen; inline, so a link's underline continues. */
 .nobr { white-space: nowrap; }

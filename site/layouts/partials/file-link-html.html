@@ -1,6 +1,7 @@
 {{- /* The link to one hosted file with its kind and version beside it, as HTML:
-       <a href="/files/…">title</a> <span class="nowrap">(kind, version)</span>.
+       <a href="/files/…">title</a> <span class="nowrap">(kind, <span class="nobr">version)</span></span>;
+       the note may wrap between kind and version, never inside the version.
        Values from facts.yaml are text, never Markdown. Used by the file-link
        shortcode (and by markdown-blocks.html when file-link sits inside a block). */ -}}
 {{- $f := partial "file.html" . -}}
-{{- return (printf `<a href="%s">%s</a> <span class="nowrap">(%s, %s)</span>` (partial "url.html" (printf "/files/%s" $f.file)) (htmlEscape $f.title) (htmlEscape $f.kind) (htmlEscape $f.version) | safeHTML) -}}
+{{- return (printf `<a href="%s">%s</a> <span class="nowrap">(%s, <span class="nobr">%s)</span></span>` (partial "url.html" (printf "/files/%s" $f.file)) (htmlEscape $f.title) (htmlEscape $f.kind) (htmlEscape $f.version) | safeHTML) -}}
