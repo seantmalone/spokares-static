@@ -305,9 +305,9 @@ class Regressions(Build):
 
     def test_form_numbers_do_not_break(self):
         pub = self.built()
-        self.assertIn('<span class="nowrap">ICS-213RR</span>', self.page(pub, "resources/index.html"))
-        self.assertIn('<span class="nowrap">ICS-213RR</span>', self.page(pub, "members/index.html"))
-        self.assertNotIn('nowrap"><span class="nowrap', self.page(pub, "members/index.html"))
+        self.assertIn('<span class="nobr">(ICS-213RR)</span>', self.page(pub, "resources/index.html"))
+        self.assertIn('<span class="nobr">ICS-213RR</span>', self.page(pub, "members/index.html"))
+        self.assertNotIn('nobr"><span class="nobr', self.page(pub, "members/index.html"))
 
 
 class BuildScript(unittest.TestCase):
