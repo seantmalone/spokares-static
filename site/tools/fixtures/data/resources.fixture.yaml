@@ -55,7 +55,7 @@ groups:
       - title: "Winlink Express"
         url: "https://winlink.org/WinlinkExpress"
         opens: "Winlink"
-        note: "The free radio email program. Washington State forms, such as the Field Situation Report, are built in."
+        note: "The free radio email program, from the Winlink team."
       - title: "AUXFOG and NIFOG field operations guides"
         url: "https://www.cisa.gov/safecom/field-operations-guides"
         opens: "CISA"
