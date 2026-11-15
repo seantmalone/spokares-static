@@ -1,4 +1,6 @@
 {{- /* The contact address (About, #contact). No arguments. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $e := partial "fact.html" "contact.email" -}}
 <p>Write to <a href="mailto:{{ $e }}">{{ $e }}</a>.</p>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

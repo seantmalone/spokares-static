@@ -1,4 +1,6 @@
 {{- /* About, "ARRL ARES levels": how the ARRL levels map onto the ACS courses.
        HTML because the course numbers must not break across lines. No arguments. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 <p>They use the same courses: Basic = Level 1’s FEMA and ARRL Basic courses; Intermediate adds ARRL Intermediate EmComm; Advanced = Level 4’s FEMA courses, minus <span class="nowrap">IS-120</span> and <span class="nowrap">IS-235</span>.</p>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

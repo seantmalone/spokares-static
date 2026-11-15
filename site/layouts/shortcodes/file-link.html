@@ -5,11 +5,12 @@
 
        gives "Spokane County ARES membership application (Word document,
        November 7, 2024)" with the title linked to /files/ares-application.docx.
-       It writes a Markdown link, so it can sit in the middle of a sentence inside
-       {{< section >}} or {{< chapter >}} (or use {{% file-link "…" %}} elsewhere).
+       It can sit in the middle of a sentence, at the top level of a content
+       file or inside {{< section >}} / {{< chapter >}} (there it is written as a
+       marker that partials/markdown-blocks.html replaces with the link).
        An unknown id stops the build. */ -}}
 {{- $id := .Get 0 -}}
 {{- if not $id }}{{ errorf "file-link: give a file id, e.g. {{< file-link \"ares-application\" >}} (%s)" .Position }}{{ end -}}
 {{- $f := partial "file.html" $id -}}
-[{{ $f.title }}](/files/{{ $f.file }}) ({{ $f.kind }}, {{ $f.version }})
+{{- if .Parent -}}SPKF{{ partialCached "token.html" "token" }}F{{ $id }}X{{- else -}}{{ partial "file-link-html.html" $id }}{{- end -}}
 {{- /* no trailing newline */ -}}

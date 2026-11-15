@@ -1,23 +1,29 @@
 {{- /* About's two leadership tables (core Table, class "table roles", as WordPress printed them). No arguments. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $unit := partial "fact.html" "leadership.unit" -}}
 {{- $section := partial "fact.html" "leadership.section" -}}
+{{- range $name, $g := dict "unit" $unit "section" $section -}}
+  {{- if or (not (reflect.IsSlice $g)) (eq (len $g) 0) -}}
+    {{- errorf "facts.yaml: leadership.%s has no positions; restore at least one (a role line and a callsign line) or remove the heading in layouts/shortcodes/leadership.html" $name -}}
+  {{- end -}}
+{{- end -}}
 {{- /* The first "AEC" is spelled out for screen readers and on hover, as on the WordPress site. */ -}}
 {{- $abbr := false -}}
 <figure class="wp-block-table table roles has-vh-caption"><table><thead><tr><th scope="col">Spokane County unit</th><th scope="col">Call sign</th></tr></thead><tbody>
   {{- range $unit }}
-  {{- if not (and .role .callsign) }}{{ errorf "facts.yaml: every leadership line needs a role and a callsign" }}{{ end }}
-  {{- $role := .role | htmlEscape }}
+  {{- $role := partial "field.html" (dict "item" . "key" "role" "list" "leadership.unit") | htmlEscape }}
+  {{- $call := partial "field.html" (dict "item" . "key" "callsign" "list" "leadership.unit") }}
   {{- if and (not $abbr) (strings.Contains $role "AEC") }}
     {{- $role = replaceRE `\bAEC\b` `<abbr title="Assistant Emergency Coordinator">AEC</abbr>` $role 1 }}
     {{- $abbr = true }}
   {{- end }}
-  <tr><td>{{ $role | safeHTML }}</td><td>{{ .callsign }}</td></tr>
+  <tr><td>{{ $role | safeHTML }}</td><td>{{ $call }}</td></tr>
   {{- end }}
 </tbody></table><figcaption class="wp-element-caption">Spokane County unit leadership</figcaption></figure>
 <figure class="wp-block-table table roles has-vh-caption"><table><thead><tr><th scope="col">Eastern Washington Section</th><th scope="col">Call sign</th></tr></thead><tbody>
   {{- range $section }}
-  {{- if not (and .role .callsign) }}{{ errorf "facts.yaml: every leadership line needs a role and a callsign" }}{{ end }}
-  <tr><td>{{ .role }}</td><td>{{ .callsign }}</td></tr>
+  <tr><td>{{ partial "field.html" (dict "item" . "key" "role" "list" "leadership.section") }}</td><td>{{ partial "field.html" (dict "item" . "key" "callsign" "list" "leadership.section") }}</td></tr>
   {{- end }}
 </tbody></table><figcaption class="wp-element-caption">Section and district leadership</figcaption></figure>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

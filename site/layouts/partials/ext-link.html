@@ -4,9 +4,16 @@
          {{ partial "ext-link.html" (dict "url" "https://www.weather.gov/otx/" "text" "NWS Spokane" "opens" "the National Weather Service" "class" "doc-title") }}
 
        opens is optional; without it the label names the host (www. dropped).
-       class adds classes beside "ext". */ -}}
-{{- $url := .url -}}
-{{- if not (findRE `^https?://` $url) }}{{ errorf "ext-link: %q is not an http(s) address" $url }}{{ end -}}
+       class adds classes beside "ext". file names the data file the address
+       came from, for the error message. */ -}}
+{{- $file := .file | default "the page" -}}
+{{- $url := string (or .url "") -}}
+{{- $text := string (or .text "") -}}
+{{- if not $text }}{{ errorf "%s: a link to %q has no title" $file $url }}{{ end -}}
+{{- if not (findRE `^https?://[^\s"'<>]+$` $url) }}{{ errorf "%s: %q is not a web address starting with https://" $file $url }}{{ end -}}
+{{- with findRE `%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|[0-9A-Fa-f]?$)` $url 1 -}}
+  {{- errorf "%s: the address %q has a %% sign that is not followed by two hex digits; copy the address again from the page" $file $url -}}
+{{- end -}}
 {{- $opens := or .opens (strings.TrimPrefix "www." (urls.Parse $url).Hostname) -}}
 {{- $class := trim (printf "%s ext" (or .class "")) " " -}}
-{{- return (printf `<a class="%s" href="%s">%s<span class="vh"> (opens %s)</span></a>` $class (htmlEscape $url) (htmlEscape .text) (htmlEscape $opens) | safeHTML) -}}
+{{- return (printf `<a class="%s" href="%s">%s<span class="vh"> (opens %s)</span></a>` $class (htmlEscape $url) (htmlEscape $text) (htmlEscape $opens) | safeHTML) -}}

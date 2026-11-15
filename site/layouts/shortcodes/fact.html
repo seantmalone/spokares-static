@@ -1,0 +1,11 @@
+{{- /* One fact from data/facts.yaml, as text, for use inside a sentence:
+
+         Check in on the {{< fact "net.day" >}} net.
+
+       A missing or empty fact stops the build. */ -}}
+{{- $p := .Get 0 -}}
+{{- if not $p }}{{ errorf "fact: give the fact's name, e.g. {{< fact \"net.day\" >}} (%s)" .Position }}{{ end -}}
+{{- $v := partial "fact.html" $p -}}
+{{- if ne (printf "%T" $v) "string" }}{{ errorf "fact: %q is not a single value (%s)" $p .Position }}{{ end -}}
+{{- $v -}}
+{{- /* no trailing newline */ -}}

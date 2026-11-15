@@ -7,8 +7,5 @@ description: "Volunteer radio operators who carry messages for Spokane County wh
 {{< home-what-we-do >}}
 
 {{< home-visit >}}
-{{< net-from-home >}}
-{{< meetings >}}
-{{< /home-visit >}}
 
 {{< home-join >}}

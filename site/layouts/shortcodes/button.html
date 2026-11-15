@@ -6,6 +6,7 @@
        class is the pill's look (btn--red, btn--ghost, …; a plain .btn is red).
        With file="<id>" the button opens that file from the "files" list in
        data/facts.yaml, and the file's kind and version are printed beside it. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $text := .Get "text" -}}
 {{- if not $text }}{{ errorf "button: text is required (%s)" .Position }}{{ end -}}
 {{- $class := trim (printf "btn %s" (.Get "class")) " " -}}
@@ -16,7 +17,11 @@
   {{- $href = printf "/files/%s" $f.file -}}
   {{- $meta = printf "(%s, %s)" $f.kind $f.version -}}
 {{- end -}}
-{{- if not $href }}{{ errorf "button: give href or file (%s)" $.Position }}{{ end -}}
+{{- if not $href }}{{ errorf "button: give href or file (%s)" .Position }}{{ end -}}
+{{- if not (or (and (strings.HasPrefix $href "/") (not (strings.HasPrefix $href "//"))) (strings.HasPrefix $href "#") (strings.HasPrefix $href "https://") (strings.HasPrefix $href "mailto:")) -}}
+  {{- errorf "button: href=%q; give a page of this site starting with / (like /about/), a #section, or an https:// address (%s)" $href .Position -}}
+{{- end -}}
 {{- if strings.HasPrefix $href "/" }}{{ $href = partial "url.html" $href }}{{ end -}}
 <div class="buttons"><a class="{{ $class }}" href="{{ $href }}">{{ $text }}</a>{{ with $meta }} <span class="file-meta">{{ . }}</span>{{ end }}</div>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

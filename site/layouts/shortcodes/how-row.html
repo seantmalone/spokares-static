@@ -7,10 +7,13 @@
 
        id, level (2 or 3; default 2) and intro (Markdown, one line) are optional.
        The heading gets no id of its own, as on the WordPress site; the row's id is
-       the anchor. The output is kept on one line so {{< section >}} can hold it. */ -}}
+       the anchor. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $level := or (.Get "level") "2" -}}
+{{- if not (in (slice "2" "3") $level) }}{{ errorf "how-row: level=%q; the level is 2 or 3 (%s)" $level .Position }}{{ end -}}
 {{- $title := .Get "title" -}}
 {{- if not $title }}{{ errorf "how-row: title is required (%s)" .Position }}{{ end -}}
 {{- $body := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position) -}}
-<div{{ with .Get "id" }} id="{{ . }}"{{ end }} class="how-row"><div class="how-row__head">{{ if eq $level "3" }}<h3>{{ $title }}</h3>{{ else }}<h2>{{ $title }}</h2>{{ end }}{{ with .Get "intro" }}<p>{{ $.Page.RenderString . }}</p>{{ end }}</div><div class="how-row__body">{{ replace $body "\n" " " | safeHTML }}</div></div>
+<div{{ with .Get "id" }} id="{{ . }}"{{ end }} class="how-row"><div class="how-row__head">{{ if eq $level "3" }}<h3>{{ $title }}</h3>{{ else }}<h2>{{ $title }}</h2>{{ end }}{{ with .Get "intro" }}<p>{{ $.Page.RenderString . }}</p>{{ end }}</div><div class="how-row__body">{{ $body | safeHTML }}</div></div>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

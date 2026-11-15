@@ -9,8 +9,9 @@
          {{< /column >}}
          {{< /section >}}
 
-       id and class are optional. Other shortcodes go on a line of their own.
-       The output is kept on one line so {{< section >}} can hold it. */ -}}
+       id and class are optional. Other shortcodes go on a line of their own. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position) -}}
-<section{{ with .Get "id" }} id="{{ . }}"{{ end }}{{ with .Get "class" }} class="{{ . }}"{{ end }}>{{ replace $html "\n" " " | safeHTML }}</section>
+<section{{ with .Get "id" }} id="{{ . }}"{{ end }}{{ with .Get "class" }} class="{{ . }}"{{ end }}>{{ $html | safeHTML }}</section>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

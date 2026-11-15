@@ -9,8 +9,10 @@
        aliases (optional, space-separated) are old anchor names kept so earlier
        links still land at the top of the chapter. The page's contents list is
        built from the chapters' "##" headings (layouts/about.html). */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
 {{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) -}}
 <section class="chapter">
 {{- range split (.Get "aliases" | default "") " " }}{{ with . }}<div aria-hidden="true" id="{{ . }}" class="wp-block-spacer anchor-alias"></div>{{ end }}{{ end -}}
-{{ replace $html "\n" " " | safeHTML }}</section>
+{{ $html | safeHTML }}</section>
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

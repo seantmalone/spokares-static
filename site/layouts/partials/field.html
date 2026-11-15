@@ -1,0 +1,16 @@
+{{- /* One value from an entry of a list in a data file, checked:
+         partial "field.html" (dict "item" . "key" "name" "list" "meetings" "file" "facts.yaml")
+       Returns the value without surrounding spaces. Stops the build when the
+       value is missing or empty (unless "optional" is true, then returns "")
+       or when it was typed without quotes (a number, yes/no, a time). */ -}}
+{{- $file := .file | default "facts.yaml" -}}
+{{- $v := "" -}}
+{{- if reflect.IsMap .item }}{{ $v = index .item .key }}{{ end -}}
+{{- if and (ne $v nil) (ne (printf "%T" $v) "string") -}}
+  {{- errorf "%s: a %q under %q is not in double quotes (it reads %v); put every value between straight double quotes, like %s: \"…\"" $file .key .list $v .key -}}
+{{- end -}}
+{{- $v = strings.TrimSpace (string (or $v "")) -}}
+{{- if and (not $v) (not .optional) -}}
+  {{- errorf "%s: an entry under %q has no %q; every entry needs one (copy the lines of another entry)" $file .list .key -}}
+{{- end -}}
+{{- return $v -}}

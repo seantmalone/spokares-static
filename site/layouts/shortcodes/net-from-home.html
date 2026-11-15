@@ -1,6 +1,5 @@
-{{- /* The "From home" card in Home's Come visit (spokares/net, view "from-home"). No arguments. */ -}}
-{{- $day := partial "fact.html" "net.day" -}}
-{{- $time := partial "fact.html" "net.time" -}}
-{{- $freq := partial "fact.html" "repeater.primary.freq" -}}
-<div class="is-view-from-home card card--dawn home-visit__air wp-block-spokares-net"><p><strong>From home:</strong> listen to the {{ $day }} net, <strong>{{ partial "glue.html" $time }}</strong>, <strong>{{ partial "glue.html" $freq }}</strong>, on any scanner or 2-meter radio. No license needed.</p></div>
+{{- /* The "From home" card (partials/net-from-home.html). No arguments. */ -}}
+{{- partial "nested.html" (dict "sc" . "edge" "open") -}}
+{{ partial "net-from-home.html" . }}
+{{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

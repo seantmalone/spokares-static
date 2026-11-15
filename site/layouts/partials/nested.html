@@ -1,0 +1,14 @@
+{{- /* Marks a shortcode's HTML when the shortcode sits inside another one
+       (section, chapter, column, how-row). Every shortcode that writes block
+       HTML starts with (dict "sc" . "edge" "open") and ends with
+       (dict "sc" . "edge" "close"). At the top level of a content file it
+       writes nothing. Inside a paired shortcode it writes a line with the
+       build's marker before and after the HTML, and markdown-blocks.html sets
+       exactly that HTML aside. Any other line starting with "<" there is typed
+       raw HTML and stops the build. */ -}}
+{{- $out := "" -}}
+{{- if .sc.Parent -}}
+  {{- $t := partialCached "token.html" "token" -}}
+  {{- if eq .edge "open" }}{{ $out = printf "SPK%s[\n" $t }}{{ else }}{{ $out = printf "\n]SPK%s" $t }}{{ end -}}
+{{- end -}}
+{{- return ($out | safeHTML) -}}

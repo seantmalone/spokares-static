@@ -1,63 +1,65 @@
-{{- /* Renders Markdown that may hold other shortcodes' HTML, each on a line of its own.
-       Markdown rendering drops raw HTML (goldmark unsafe = false), so a nested
-       shortcode's HTML is set aside, the Markdown around it is rendered, and the
-       HTML is put back in its place. Used by the section and how-row shortcodes.
+{{- /* Renders the Markdown inside a paired shortcode (section, chapter, column,
+       how-row), with other shortcodes' HTML in it.
        Usage: partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position)
 
-       Outside a ``` or ~~~ code fence, a line that starts with "<" is:
-       - an autolink (<https://…>, <name@host>): left to Markdown;
-       - a block tag (div, section, figure, ul, li, table, hr, p, svg, h2…) or, inside
-         such a run, a closing tag: shortcode HTML, set aside with the lines after it
-         that also start with "<";
-       - anything else (<b>, <span>, <a>, <img>…): the build stops, because raw HTML
-         is not allowed in Markdown.
-       Set-aside HTML may not carry style=, on…= handlers, <style> or <script>.
-       A shortcode indented under a list item stays in that item. */ -}}
+       Markdown rendering drops raw HTML (goldmark unsafe = false), so each nested
+       shortcode marks its own HTML with this build's marker (partials/nested.html,
+       partials/token.html); that HTML is set aside, the Markdown around it is
+       rendered, and the HTML is put back in its place. The marker changes every
+       build, so it cannot be typed. Outside a ``` or ~~~ code fence, any other
+       line that starts with "<" is raw HTML typed into the page and stops the
+       build, except an autolink (<https://…>). A shortcode indented under a list
+       item stays in that item. Shortcode HTML may not carry style= or on…=
+       attributes, <style> or <script>. A {{< file-link >}} inside the block is
+       written as a marker too and replaced here by its link. */ -}}
 {{- $where := or .pos .page.File.Path -}}
-{{- $blockTags := `div|section|figure|figcaption|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|hr|p|svg|nav|aside|header|footer|h[1-6]|blockquote|details|summary` -}}
+{{- $t := partialCached "token.html" "token" -}}
+{{- $open := printf "SPK%s[" $t -}}
+{{- $close := printf "]SPK%s" $t -}}
 {{- $blocks := slice -}}
 {{- $md := slice -}}
 {{- $cur := "" -}}
+{{- $in := false -}}
 {{- $fence := "" -}}
-{{- range split (strings.TrimSpace .text) "\n" -}}
+{{- range split .text "\n" -}}
   {{- $line := . -}}
-  {{- $t := strings.TrimSpace $line -}}
-  {{- $isBlock := false -}}
-  {{- if $fence -}}
-    {{- if and (strings.HasPrefix $t $fence) (eq (strings.Trim $t (substr $fence 0 1)) "") -}}{{- $fence = "" -}}{{- end -}}
-  {{- else if findRE "^(```+|~~~+)" $t -}}
-    {{- $fence = index (findRE "^(```+|~~~+)" $t) 0 -}}
-  {{- else if strings.HasPrefix $t "<" -}}
-    {{- if findRE `^<(?:[a-zA-Z][a-zA-Z0-9+.-]*:[^\s<>]*|[^\s<>@]+@[^\s<>@]+)>` $t -}}
-      {{- /* autolink: Markdown */ -}}
-    {{- else if findRE (printf `^<(?:%s)[\s>/]` $blockTags) $t -}}
-      {{- $isBlock = true -}}
-    {{- else if and (ne $cur "") (strings.HasPrefix $t "</") -}}
-      {{- $isBlock = true -}}
+  {{- $tr := strings.TrimSpace $line -}}
+  {{- if $in -}}
+    {{- if eq $tr $close -}}
+      {{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- $cur = "" -}}{{- $in = false -}}
     {{- else -}}
-      {{- errorf "%s: this line starts with %q but is not a shortcode's block HTML: %q. Raw HTML is not allowed in Markdown; reword the line so it does not start with %q, or put the HTML in a shortcode." $where "<" $t "<" -}}
+      {{- $cur = printf "%s%s\n" $cur $line -}}
+    {{- end -}}
+    {{- continue -}}
+  {{- end -}}
+  {{- if $fence -}}
+    {{- if and (strings.HasPrefix $tr $fence) (eq (strings.Trim $tr (substr $fence 0 1)) "") -}}{{- $fence = "" -}}{{- end -}}
+  {{- else if findRE "^(```+|~~~+)" $tr -}}
+    {{- $fence = index (findRE "^(```+|~~~+)" $tr) 0 -}}
+  {{- else if eq $tr $open -}}
+    {{- $indent := replaceRE `^(\s*).*$` "$1" $line -}}
+    {{- $md = $md | append "" (printf "%sSPKBLOCK%dX" $indent (len $blocks)) "" -}}
+    {{- $in = true -}}
+    {{- continue -}}
+  {{- else if strings.HasPrefix $tr "<" -}}
+    {{- if not (findRE `^<(?:[a-zA-Z][a-zA-Z0-9+.-]*:[^\s<>]*|[^\s<>@]+@[^\s<>@]+)>` $tr) -}}
+      {{- errorf "%s: this line is raw HTML, which is not allowed in page text: %q. Write it as ordinary text, or ask for a shortcode that makes it." $where (substr $tr 0 100) -}}
     {{- end -}}
   {{- end -}}
-  {{- if $isBlock -}}
-    {{- if eq $cur "" -}}
-      {{- $indent := replaceRE `^(\s*).*$` "$1" $line -}}
-      {{- $md = $md | append "" (printf "%sSPKBLOCK%dX" $indent (len $blocks)) "" -}}
-    {{- end -}}
-    {{- $cur = printf "%s%s\n" $cur $line -}}
-  {{- else -}}
-    {{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- $cur = "" -}}{{- end -}}
-    {{- $md = $md | append $line -}}
-  {{- end -}}
+  {{- $md = $md | append $line -}}
 {{- end -}}
-{{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- end -}}
+{{- if $in }}{{ errorf "%s: a nested shortcode's HTML was not closed; put each shortcode on a line of its own" $where }}{{ end -}}
 {{- $html := string (.page.RenderString (dict "display" "block") (delimit $md "\n")) -}}
 {{- range $i, $b := $blocks -}}
-  {{- with findRE `(?i)\sstyle\s*=|\son[a-z]+\s*=|<style|<script` $b 1 -}}
-    {{- errorf "%s: HTML set aside for Markdown carries %q, which the site does not allow: %q" $where (index . 0) (substr $b 0 120) -}}
+  {{- with findRE `(?i)<[a-z][^>]*?\s(?:style|on[a-z]+)\s*=|<style[\s>]|<script[\s>]` $b 1 -}}
+    {{- errorf "%s: a shortcode's HTML carries %q, which the site does not allow" $where (index . 0) -}}
   {{- end -}}
   {{- $html = replace $html (printf "<p>SPKBLOCK%dX</p>" $i) $b -}}
 {{- end -}}
-{{- with findRE `SPKBLOCK[0-9]+X` $html 1 -}}
+{{- range findRESubmatch (printf `SPKF%sF([a-z0-9-]+)X` $t) $html -}}
+  {{- $html = replace $html (index . 0) (partial "file-link-html.html" (index . 1)) -}}
+{{- end -}}
+{{- with findRE (printf `SPKBLOCK[0-9]+X|SPK%s|SPKF%s` $t $t) $html 1 -}}
   {{- errorf "%s: a nested shortcode could not be put back (it ended up inside a code block or a paragraph). Put it on a line of its own, with a blank line before and after, indented no more than its list item's text." $where -}}
 {{- end -}}
 {{- return $html -}}

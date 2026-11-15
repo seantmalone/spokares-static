@@ -1,16 +1,14 @@
 {{- /* {{ partial "file.html" "acs-task-book" }} returns that entry of the "files" list
-       in data/facts.yaml (id, title, file, kind, version) and stops the build when
-       the id is unknown or a field is empty. */ -}}
+       in data/facts.yaml (id, title, file, kind, version), each value checked, and
+       stops the build when the id is unknown or a field is empty or unquoted. */ -}}
 {{- $id := . -}}
 {{- $found := false -}}
 {{- range partial "fact.html" "files" -}}
-  {{- if eq .id $id }}{{ $found = . }}{{ end -}}
+  {{- if eq (partial "field.html" (dict "item" . "key" "id" "list" "files")) $id }}{{ $found = . }}{{ end -}}
 {{- end -}}
-{{- if not $found -}}
-  {{- errorf "facts.yaml: no file with id %q under files" $id -}}
-{{- else -}}
-  {{- range slice "title" "file" "kind" "version" -}}
-    {{- if not (index $found .) }}{{ errorf "facts.yaml: file %q needs a %s" $id . }}{{ end -}}
-  {{- end -}}
+{{- if not $found -}}{{- errorf "facts.yaml: no file with id %q under files" $id -}}{{- end -}}
+{{- $out := dict -}}
+{{- range slice "id" "title" "file" "kind" "version" -}}
+  {{- $out = merge $out (dict . (partial "field.html" (dict "item" $found "key" . "list" "files"))) -}}
 {{- end -}}
-{{- return $found -}}
+{{- return $out -}}

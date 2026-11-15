@@ -1,10 +1,14 @@
 {{- /* {{ partial "fact.html" "net.time" }} returns the value at that dotted path in
-       data/facts.yaml and stops the build when it is missing or empty
-       (a value of only spaces counts as empty). */ -}}
+       data/facts.yaml and stops the build when it is missing or empty (a value
+       of only spaces counts as empty), or when a single value was typed without
+       quotes (YAML then reads 147.300 as the number 147.3). */ -}}
 {{- $v := hugo.Data.facts -}}
 {{- range split . "." -}}
   {{- if not (reflect.IsMap $v) -}}{{- errorf "facts.yaml: missing %q" $ -}}{{- end -}}
   {{- $v = index $v . -}}
+{{- end -}}
+{{- if and (ne $v nil) (not (reflect.IsMap $v)) (not (reflect.IsSlice $v)) (ne (printf "%T" $v) "string") -}}
+  {{- errorf "facts.yaml: %q must be in double quotes (it reads %v); put the value between straight double quotes, as the other values are" $ $v -}}
 {{- end -}}
 {{- if eq (printf "%T" $v) "string" -}}{{- $v = strings.TrimSpace $v -}}{{- end -}}
 {{- if not $v -}}{{- errorf "facts.yaml: missing %q" $ -}}{{- end -}}

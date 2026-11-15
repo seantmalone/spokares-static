@@ -1,0 +1,15 @@
+{{- /* The in-person meetings card (spokares/meetings, view "home"): rules only,
+       never dates. Used by the home-visit and meetings shortcodes. */ -}}
+{{- $name := partial "fact.html" "place.name" -}}
+{{- $street := partial "fact.html" "place.street" -}}
+{{- $city := partial "fact.html" "place.city" -}}
+{{- $day := partial "fact.html" "net.day" -}}
+<div class="is-view-home wp-block-spokares-meetings"><p><strong>In person</strong> at {{ $name }}, {{ $street }}, {{ $city }}:</p><ul class="meetings">
+  {{- range partial "fact.html" "meetings" }}
+  {{- $n := partial "field.html" (dict "item" . "key" "name" "list" "meetings") }}
+  {{- $w := partial "field.html" (dict "item" . "key" "when" "list" "meetings") }}
+  {{- $x := partial "field.html" (dict "item" . "key" "extra" "list" "meetings" "optional" true) }}
+  <li><span><strong>{{ $n }}:</strong> {{ partial "glue.html" $w }}{{ with $x }}; {{ partial "glue.html" . }}{{ end }}.</span></li>
+  {{- end }}
+</ul><p class="meetings__note">Changes are announced on the {{ $day }} net.</p></div>
+{{- /* no trailing newline */ -}}

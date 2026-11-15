@@ -1,0 +1,5 @@
+{{- /* A marker that changes with every build, so nobody can type it into a
+       content file. Call it as partialCached "token.html" "token" so the whole
+       build uses one value. markdown-blocks.html lets HTML through only between
+       this marker's lines, which only nested.html writes. */ -}}
+{{- return (substr (sha256 (printf "spk-%d" now.UnixNano)) 0 24) -}}

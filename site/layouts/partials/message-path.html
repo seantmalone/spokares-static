@@ -1,9 +1,10 @@
 {{- /* The message-path drawing in How it works' opener (theme block
        spokares-theme/message-path). Its type sizes and the pill's scale live in
        site.css (.mp-label, .mp-sub, .mp-pill). Usage: {{ partial "message-path.html" . }} */ -}}
+{{- $call := partial "fact.html" "repeater.primary.call" -}}
 <svg class="msgpath msgpath--to-eoc" data-state="relay" viewBox="0 0 560 400" role="img" aria-labelledby="mp-t mp-d" xmlns="http://www.w3.org/2000/svg">
 <title id="mp-t">A scenario: one message, four hops</title>
-<desc id="mp-d">Power and cell service are down. A red line carries the message from a shelter (1) to net control on the W7GBU repeater (2), then to the county radio room (3) and the EOC (4).</desc>
+<desc id="mp-d">Power and cell service are down. A red line carries the message from a shelter (1) to net control on the {{ $call }} repeater (2), then to the county radio room (3) and the EOC (4).</desc>
 <defs>
 <linearGradient id="mp-hill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A3A5C"/><stop offset="1" stop-color="#16223D"/></linearGradient>
 <pattern id="mp-rain" width="60" height="48" patternUnits="userSpaceOnUse"><path d="M9 3 L5 11 M31 12 L27 20 M51 4 L47 12 M19 26 L15 34 M43 30 L39 38 M57 38 L53 46 M7 40 L3 48" stroke="#A9B8D6" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/></pattern>
@@ -58,7 +59,7 @@
 <text class="mp-label" x="62" y="358" text-anchor="middle">Shelter</text>
 <text class="mp-label" x="387" y="358" text-anchor="middle">County EOC</text>
 <text class="mp-label" x="502" y="358" text-anchor="middle">Hospital</text>
-<text class="mp-label" x="262" y="24" text-anchor="end">W7GBU repeater</text>
+<text class="mp-label" x="262" y="24" text-anchor="end">{{ $call }} repeater</text>
 <g class="mp-pill">
 <rect x="434" y="12" width="114" height="30" rx="15" fill="#0E1A33" fill-opacity=".9" stroke="#FFC857" stroke-opacity=".75"/>
 <circle cx="451" cy="27" r="4" fill="#FFC857"/>
