@@ -1,0 +1,4 @@
+{{- /* Keeps a number on the same line as its unit ("8:00 PM", "147.300 MHz"), with a
+       no-break space, as the WordPress site printed them. For text shown on screen;
+       copied text keeps ordinary spaces. Usage: {{ partial "glue.html" $time }} */ -}}
+{{- return (replaceRE `(\d) (AM|PM|MHz|kHz|Hz)\b` "$1 $2" .) -}}

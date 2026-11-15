@@ -1,0 +1,18 @@
+{{- /* Home "Come visit" (dawn band). Paired: put the two cards between the tags,
+       each on a line of its own, the meetings card last:
+
+         {{< home-visit >}}
+         {{< net-from-home >}}
+         {{< meetings >}}
+         {{< /home-visit >}}
+
+       The in-person card sits in its own column wrapper (.home-visit__person), as on
+       the WordPress site; that wrapper is added here around the meetings card.
+       #this-week is kept as an anchor for old links. */ -}}
+{{- $meet := `<div class="is-view-home wp-block-spokares-meetings">` -}}
+{{- $parts := split (strings.TrimSpace .Inner) $meet -}}
+{{- if ne (len $parts) 2 }}{{ errorf "home-visit: put one {{< meetings >}} inside {{< home-visit >}}, last (%s)" .Position }}{{ end -}}
+{{- $air := strings.TrimSpace (index $parts 0) -}}
+{{- $person := printf "%s%s" $meet (index $parts 1) -}}
+<section id="visit" class="bg-dawn home-visit"><div aria-hidden="true" id="this-week" class="wp-block-spacer anchor-alias"></div><div class="wrap"><h2 class="home-h2">Come visit</h2><div class="home-visit__grid">{{ $air | safeHTML }}<div class="home-visit__person">{{ $person | safeHTML }}</div></div></div></section>
+{{- /* no trailing newline */ -}}
