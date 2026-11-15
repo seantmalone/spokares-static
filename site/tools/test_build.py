@@ -783,6 +783,12 @@ class RoutineEdits(RealSite):
         self.facts.set("place", "city", value="Spokane Valley")
         self.passes("index.html", values=["Spokane Valley Fire Station 8, 2320 N Argonne Rd, Spokane Valley"])
 
+    def test_change_the_members_group_address(self):
+        new = self.other(self.facts.get("groupsio"), "https://spokane-ares.groups.io/g/members",
+                         "https://spokane-ares.groups.io/g/main")
+        self.facts.set("groupsio", value=new)
+        self.passes("members/index.html", values=[new])
+
     # -- contact and hosted files
     def test_change_contact_email_with_a_corrected_application(self):
         old = self.facts.get("contact", "email")

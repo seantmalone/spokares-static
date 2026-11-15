@@ -25,6 +25,7 @@ CSS = """@font-face{font-family:"X";src:url('../fonts/x.woff2') format('woff2');
 FACTS = """# test facts
 contact:
   email: "info@spokares.org"
+groupsio: "https://spokaneares-acs.groups.io/g/main"
 files:
   - id: "ares-application"
     title: "ARES application"
@@ -996,6 +997,14 @@ class Stages(Case):
         self.body(MEMBERS + '<p><a href="https://spokaneares-acs.groups.io/g/main">again</a></p>',
                   rel="members/index.html")
         self.assertFails("expected exactly one groups.io link (on /members/), found 2")
+
+    def test_group_address_comes_from_facts(self):
+        self.site.facts.write_text(FACTS.replace("spokaneares-acs.groups.io/g/main", "spokane-ares.groups.io/g/members"),
+                                   encoding="utf-8")
+        self.assertFails("members/index.html: groups.io link not allowed here: https://spokaneares-acs.groups.io/g/main")
+        self.body(MEMBERS.replace("spokaneares-acs.groups.io/g/main", "spokane-ares.groups.io/g/members"),
+                  rel="members/index.html", title="For members")
+        self.assertPasses()
 
     def test_groups_io_on_another_page(self):
         self.body('<p><a href="https://spokaneares-acs.groups.io/g/main">group</a></p>')

@@ -76,7 +76,6 @@ FORBIDDEN_RAW = ["needs-verify", "data-verify", "wp-block-navigation", "wp-conte
 PLACEHOLDER = check_data.PLACEHOLDER
 FACTCHECK = ["147.300", "100 Hz", "8:00 PM", "Second Saturday", "Third Thursday",
              "1121 W Gardner Ave", "W7TSC", "info@spokares.org"]
-GROUPS_IO = "https://spokaneares-acs.groups.io/g/main"
 # Elements and attributes the site never uses; any of them is a sign of
 # pasted or injected HTML.
 BANNED_TAGS = {"base", "form", "iframe", "object", "embed", "animate", "set", "frame", "frameset",
@@ -316,11 +315,12 @@ def parse_args(argv):
 
 
 def read_facts(path):
-    """Returns (allowed e-mail addresses, {file name: version}, problems)."""
+    """Returns (allowed e-mail addresses, {file name: version}, the members'
+    group address, problems)."""
     try:
         facts = check_data.strip(check_data.load(path))
     except check_data.DataError as e:
-        return set(), None, [f"cannot read the facts file: {e}"]
+        return set(), None, "", [f"cannot read the facts file: {e}"]
     problems, emails, files = [], set(), {}
     email = (facts.get("contact") or {}).get("email") if isinstance(facts.get("contact"), dict) else None
     if not isinstance(email, str) or not re.fullmatch(rf"[a-z0-9._%+-]+@{re.escape(SITE_DOMAIN)}", email):
@@ -330,7 +330,8 @@ def read_facts(path):
     for item in facts.get("files") or []:
         if isinstance(item, dict) and isinstance(item.get("file"), str):
             files[item["file"]] = item.get("version") if isinstance(item.get("version"), str) else ""
-    return emails, files, problems
+    group = facts.get("groupsio") if isinstance(facts.get("groupsio"), str) else ""
+    return emails, files, group, problems
 
 
 CLEAN_WORD = ("in Word accept all changes, delete all comments, and remove personal information from the file's "
@@ -511,7 +512,7 @@ def main():
     root, stage, base, mode = o["root"], o["stage"], o["base"], o["mode"]
     problems, notes = [], []
     pages = {}
-    allowed_emails, files_listed, fp = read_facts(o["facts"])
+    allowed_emails, files_listed, groups_io, fp = read_facts(o["facts"])
     problems += fp
     versions = sorted({v for v in (files_listed or {}).values() if v}, key=len, reverse=True)
     this_year = datetime.date.today().year
@@ -678,8 +679,10 @@ def main():
                 host = (u.hostname or "").lower()
                 if host == "groups.io" or host.endswith(".groups.io"):
                     groups_links += 1
-                    same = (scheme == "https" and host == urlparse(GROUPS_IO).hostname
-                            and u.path.rstrip("/") == urlparse(GROUPS_IO).path
+                    # The one link allowed: the members' group named in facts.yaml (groupsio).
+                    g = urlparse(groups_io)
+                    same = (scheme == "https" and host == (g.hostname or "").lower()
+                            and u.path.rstrip("/") == g.path.rstrip("/")
                             and not u.query and not u.fragment)
                     if rel != "members/index.html" or not same:
                         problems.append(f"{rel}: groups.io link not allowed here: {href}")
