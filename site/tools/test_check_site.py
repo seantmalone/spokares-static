@@ -44,12 +44,17 @@ files:
 """
 
 
-def docx(text="Phone: ________  Email: ________", creator="Spokane County ARES-ACS", modified="", rels=""):
-    """A small Word file: one paragraph of text and the two author fields."""
+def docx(text="Phone: ________  Email: ________", creator="Spokane County ARES-ACS", modified="", rels="",
+         body="", parts=None, company=""):
+    """A small Word file: one paragraph of text, the two author fields, and any
+    extra XML in the body or extra parts ({name: xml})."""
     b = io.BytesIO()
     with zipfile.ZipFile(b, "w") as z:
+        for name, xml in (parts or {}).items():
+            z.writestr(name, xml)
+        z.writestr("docProps/app.xml", f"<Properties><Company>{company}</Company></Properties>")
         z.writestr("[Content_Types].xml", "<Types/>")
-        z.writestr("word/document.xml", f"<w:document><w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p></w:body></w:document>")
+        z.writestr("word/document.xml", f"<w:document><w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p>{body}</w:body></w:document>")
         z.writestr("word/_rels/document.xml.rels", f"<Relationships>{rels}</Relationships>")
         z.writestr("docProps/core.xml", f"<cp:coreProperties><dc:creator>{creator}</dc:creator>"
                                         f"<cp:lastModifiedBy>{modified}</cp:lastModifiedBy></cp:coreProperties>")
@@ -507,6 +512,86 @@ class FileContents(Case):
         self.assertFails("is not a readable Word document")
 
 
+class DocumentsAnywhere(Case):
+    """R1: a document anywhere in the build must be one of the listed files."""
+
+    def test_document_in_a_subfolder_of_files(self):
+        self.site.write_bytes("files/old/roster.docx", docx())
+        self.assertFails("files/old/roster.docx is a document that is not one of the files listed in facts.yaml")
+
+    def test_document_elsewhere(self):
+        self.site.write_bytes("img/scan.pdf", b"%PDF-1.7\n%%EOF\n")
+        self.assertFails("img/scan.pdf is a document that is not one of the files listed")
+
+    def test_spreadsheet(self):
+        self.site.write_bytes("roster.xlsx", b"PK")
+        self.assertFails("roster.xlsx is a document")
+
+    def test_zip(self):
+        self.site.write_bytes("files/all.zip", b"PK")
+        self.assertFails("files/all.zip is")
+
+    def test_document_in_subfolder_is_scanned_too(self):
+        self.site.write_bytes("files/old/x.docx", docx("bob@gmail.com"))
+        self.assertFails("files/old/x.docx: e-mail address not allowed: bob@gmail.com")
+
+
+class DocumentPeople(Case):
+    """R2: names and sign-in addresses carried inside Word and PDF files."""
+
+    def test_tracked_change(self):
+        self.site.write_bytes("files/ares-application.docx",
+                              docx(body='<w:ins w:id="1" w:author="Jane Member" w:date="2026-01-01T00:00:00Z"><w:r><w:t>x</w:t></w:r></w:ins>'))
+        out = self.assertFails("files/ares-application.docx: has tracked changes")
+        self.assertIn("accept all changes and delete comments", out)
+        self.assertIn("Jane Member", out)
+
+    def test_deletion_by_group_still_refused(self):
+        self.site.write_bytes("files/ares-application.docx",
+                              docx(body='<w:del w:id="1" w:author="Spokane County ARES-ACS"><w:r><w:delText>x</w:delText></w:r></w:del>'))
+        self.assertFails("has tracked changes")
+
+    def test_comments(self):
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/comments.xml": '<w:comments><w:comment w:id="0" w:author="Jane Member" w:initials="JM"><w:p><w:r><w:t>check</w:t></w:r></w:p></w:comment></w:comments>'}))
+        self.assertFails("files/ares-application.docx: has comments")
+
+    def test_people_part(self):
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/people.xml": '<w15:people><w15:person w15:author="Jane Member"><w15:presenceInfo w15:providerId="AD" w15:userId="jane@example.com"/></w15:person></w15:people>'}))
+        out = self.assertFails("files/ares-application.docx: names a person")
+        self.assertIn("Inspect Document", out)
+
+    def test_company(self):
+        self.site.write_bytes("files/ares-application.docx", docx(company="Acme Plumbing"))
+        self.assertFails("the document's Company is 'Acme Plumbing'")
+
+    def test_group_name_is_fine(self):
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/people.xml": '<w15:people><w15:person w15:author="Spokane County ARES-ACS"/></w15:people>'}))
+        self.assertPasses()
+
+    def test_pdf_author(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n1 0 obj<</Author(Jane Member)/Producer(x)>>endobj\n%%EOF\n")
+        self.assertFails("files/arrl-ares-task-book.pdf: the PDF's author is 'Jane Member'")
+
+    def test_pdf_xmp_creator(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n<x:xmpmeta><dc:creator><rdf:Seq><rdf:li>Jane Member</rdf:li></rdf:Seq></dc:creator></x:xmpmeta>\n%%EOF\n")
+        self.assertFails("the PDF's author is 'Jane Member'")
+
+    def test_pdf_hex_author(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n1 0 obj<</Author<FEFF004A0061006E0065>>>endobj\n%%EOF\n")
+        self.assertFails("the PDF's author is 'Jane'")
+
+    def test_pdf_creator_tool_is_fine(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n<xmp:CreatorTool>Adobe InDesign</xmp:CreatorTool>\n%%EOF\n")
+        self.assertPasses()
+
+
 class Dates(Case):
     """M5: the date check no longer leaks."""
 
@@ -684,6 +769,12 @@ class Email(Case):
         self.body('<p><a href="mailto:contact@spokares.org">Write</a> or info@spokares.org</p>')
         out = self.assertFails("e-mail address not allowed: info@spokares.org")
         self.assertNotIn("contact@spokares.org", out)
+
+    def test_changed_address_still_in_the_form(self):
+        self.site.write_bytes("files/ares-application.docx", docx("Send it to info@spokares.org"))
+        self.site.facts.write_text(FACTS.replace("info@spokares.org", "contact@spokares.org"), encoding="utf-8")
+        self.assertFails("files/ares-application.docx: the file still gives info@spokares.org, but facts.yaml now says "
+                         "contact@spokares.org; upload a corrected file in the same change")
 
     def test_facts_address_off_domain(self):
         self.site.facts.write_text(FACTS.replace("info@spokares.org", "bob@gmail.com"), encoding="utf-8")

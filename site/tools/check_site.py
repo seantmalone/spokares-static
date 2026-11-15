@@ -79,6 +79,8 @@ GROUPS_IO = "https://spokaneares-acs.groups.io/g/main"
 # pasted or injected HTML.
 BANNED_TAGS = {"base", "form", "iframe", "object", "embed", "animate", "set", "frame", "frameset",
                "applet", "portal"}
+# Files that are documents: only the listed hosted files may ship.
+DOC_EXT = {".doc", ".docx", ".pdf", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp", ".rtf", ".zip"}
 DANGEROUS_SCHEME = re.compile(r"^(?:javascript|vbscript|data):", re.I)
 
 DASH = "\\-\u2010‑‒–—−"
@@ -310,13 +312,43 @@ def read_facts(path):
     return emails, files, problems
 
 
+CLEAN_WORD = ("in Word accept all changes and delete comments, then File › Info › Inspect Document › "
+              "remove personal information, save, and upload it again")
+
+
+def docx_people(z):
+    """Problems with names a Word file carries: tracked changes, comments,
+    authors of either, the people list, Company and Manager."""
+    out, names = [], set()
+    for n in z.namelist():
+        if not n.endswith(".xml"):
+            continue
+        t = z.read(n).decode("utf-8", "replace")
+        for k, v in re.findall(r'\b(w:author|w15:author|w15:userId|w:initials)="([^"]*)"', t):
+            v = html.unescape(v).strip()
+            if v and v != FILES_AUTHOR and k != "w:initials":
+                names.add(v)
+        if re.search(r"<w:(?:ins|del|moveFrom|moveTo)\b", t):
+            out.append(f"has tracked changes; {CLEAN_WORD}")
+        if re.fullmatch(r"word/comments\w*\.xml", n) and re.search(r"<w(?:15|16cid|16cex)?:comment\w*\b", t):
+            out.append(f"has comments; {CLEAN_WORD}")
+        if n == "docProps/app.xml":
+            for k in ("Company", "Manager"):
+                m = re.search(rf"<{k}>([^<]*)</{k}>", t)
+                if m and html.unescape(m.group(1)).strip():
+                    out.append(f"the document's {k} is {html.unescape(m.group(1)).strip()!r}; {CLEAN_WORD}")
+    if names:
+        out.append(f"names a person ({', '.join(sorted(names))}); {CLEAN_WORD}")
+    return sorted(set(out), key=out.index)
+
+
 def docx_text(path):
     """Text and metadata of a Word file: (text, {creator, lastModifiedBy}, error)."""
     try:
         z = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError):
         return "", {}, "is not a readable Word document"
-    out, meta = [], {}
+    out, meta = [], {"people": docx_people(z)}
     for n in z.namelist():
         if not re.fullmatch(r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml"
                             r"|word/_rels/[^/]+\.rels|docProps/[^/]+\.xml", n):
@@ -334,8 +366,7 @@ def docx_text(path):
     return "\n".join(out), meta, None
 
 
-def pdf_emails(path):
-    """Best effort: e-mail addresses in a PDF's bytes and its deflated streams."""
+def pdf_parts(path):
     b = path.read_bytes()
     parts = [b]
     for m in re.finditer(rb"stream\r?\n(.*?)endstream", b, re.S):
@@ -343,10 +374,41 @@ def pdf_emails(path):
             parts.append(zlib.decompress(m.group(1)))
         except zlib.error:
             pass
+    return parts
+
+
+def pdf_emails(parts):
+    """Best effort: e-mail addresses in a PDF's bytes and its deflated streams."""
     found = set()
     for p in parts:
         found |= {e.decode("ascii", "replace").lower() for e in PDF_EMAIL.findall(p)}
     return found
+
+
+def pdf_text_string(raw):
+    """A PDF string: (literal) or <hex>, UTF-16BE when it starts with a byte-order mark."""
+    if raw.startswith(b"<"):
+        try:
+            data = bytes.fromhex(raw[1:-1].decode("ascii"))
+        except ValueError:
+            return ""
+    else:
+        data = re.sub(rb"\\([()\\])", rb"\1", raw[1:-1])
+    if data.startswith(b"\xfe\xff"):
+        return data[2:].decode("utf-16-be", "replace")
+    return data.decode("latin-1")
+
+
+def pdf_authors(parts):
+    """Best effort: the Author of the Info dictionary and the XMP creators."""
+    found = set()
+    for p in parts:
+        for m in re.finditer(rb"/Author\s*(\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>)", p):
+            found.add(pdf_text_string(m.group(1)).strip())
+        for m in re.finditer(rb"<(dc:creator|pdf:Author)>(.*?)</\1>", p, re.S):
+            for li in re.findall(rb"<rdf:li[^>]*>(.*?)</rdf:li>", m.group(2), re.S) or [m.group(2)]:
+                found.add(html.unescape(li.decode("utf-8", "replace")).strip())
+    return {a for a in found if a and a != FILES_AUTHOR}
 
 
 def main():
@@ -536,36 +598,53 @@ def main():
     if stage >= 6 and groups_links != 1:
         problems.append(f"expected exactly one groups.io link (on /members/), found {groups_links}")
 
-    # Hosted files: exactly the ones listed in facts.yaml, and nothing personal in them.
+    # Hosted files: exactly the ones listed in facts.yaml, and no other
+    # document anywhere in the build; nothing personal in any of them.
     fdir = root / "files"
     shipped = {f.name for f in fdir.iterdir() if f.is_file()} if fdir.is_dir() else set()
     if files_listed is not None:
+        listed = ", ".join(sorted(files_listed)) or "none"
         for name in sorted(shipped - set(files_listed)):
-            listed = ", ".join(sorted(files_listed)) or "none"
-            problems.append(f"files/{name} is not listed under files in facts.yaml; a replacement must keep "
-                            f"the listed name ({listed}), so delete this upload or rename it")
+            problems.append(f"files/{name} is not listed under files in facts.yaml; give it the listed name "
+                            f"({listed}) or list it in facts.yaml, or delete the upload")
         for name in sorted(set(files_listed) - shipped):
             problems.append(f"files/{name} is listed in facts.yaml but missing from site/static/files/; "
                             "upload it with exactly that name")
-    for name in sorted(shipped):
-        f = fdir / name
+    docs = sorted(f for f in root.rglob("*") if f.is_file() and f.suffix.lower() in DOC_EXT)
+    for f in docs:
+        rel = f.relative_to(root).as_posix()
+        if f.parent != fdir:
+            problems.append(f"{rel} is a document that is not one of the files listed in facts.yaml; documents go "
+                            "only in site/static/files/ under a listed name, so move or delete it")
+        name = f.name
         if name.lower().endswith(".docx"):
             text, meta, err = docx_text(f)
             if err:
-                problems.append(f"files/{name}: {err}")
+                problems.append(f"{rel}: {err}")
                 continue
             for e in sorted(emails(text) - allowed_emails):
-                problems.append(f"files/{name}: e-mail address not allowed: {e}")
+                if e.endswith("@" + SITE_DOMAIN):
+                    now = ", ".join(sorted(allowed_emails)) or "the contact address"
+                    problems.append(f"{rel}: the file still gives {e}, but facts.yaml now says {now}; "
+                                    "upload a corrected file in the same change")
+                else:
+                    problems.append(f"{rel}: e-mail address not allowed: {e}")
             m = PHONE.search(norm(text))
             if m:
-                problems.append(f"files/{name}: something that looks like a phone number: {m.group(0)!r}")
+                problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}")
+            for p in meta.pop("people", []):
+                problems.append(f"{rel}: {p}")
             for k, v in meta.items():
                 if v not in ("", FILES_AUTHOR):
-                    problems.append(f"files/{name}: the document's {k} is {v!r}; set it to {FILES_AUTHOR!r} "
-                                    "or empty (in Word: File, Info, Properties)")
+                    problems.append(f"{rel}: the document's {k} is {v!r}; set it to {FILES_AUTHOR!r} "
+                                    f"or empty ({CLEAN_WORD})")
         elif name.lower().endswith(".pdf"):
-            for e in sorted(pdf_emails(f) - allowed_emails):
-                problems.append(f"files/{name}: e-mail address not allowed: {e}")
+            parts = pdf_parts(f)
+            for e in sorted(pdf_emails(parts) - allowed_emails):
+                problems.append(f"{rel}: e-mail address not allowed: {e}")
+            for a in sorted(pdf_authors(parts)):
+                problems.append(f"{rel}: the PDF's author is {a!r}; it must be empty or {FILES_AUTHOR!r} "
+                                "(remove it in the program that made the PDF, or in Acrobat: File › Properties)")
 
     for f in sorted(root.rglob("*.css")):
         rel = f.relative_to(root).as_posix()
