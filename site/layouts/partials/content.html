@@ -1,11 +1,43 @@
 {{- /* The page's rendered content. Shortcodes written on consecutive lines in a
        content file form one Markdown paragraph, so Goldmark wraps their HTML in
        <p>…</p> (invalid around a <div> or <section>, and the browser then leaves
-       empty paragraphs behind). Those wrapping tags are removed here. A real
+       empty paragraphs behind). Those wrapping pairs are removed here. A real
        paragraph never starts with a block tag (raw HTML is not allowed in
        Markdown here), so nothing else is touched. Usage: {{ partial "content.html" . }} */ -}}
-{{- $block := `div|section|figure|nav|aside|header|footer|table|ul|ol|dl|p|h[1-6]` -}}
+{{- $block := `div|section|figure|nav|aside|header|footer|table|ul|ol|dl|p|hr|h[1-6]` -}}
 {{- $c := string .Content -}}
-{{- $c = replaceRE (printf `<p>(<(?:%s)[\s>])` $block) "$1" $c -}}
-{{- $c = replaceRE (printf `(</(?:%s)>)</p>` $block) "$1" $c -}}
-{{- return ($c | safeHTML) -}}
+{{- $where := .File.Path -}}
+{{- $out := "" -}}
+{{- $rest := $c -}}
+{{- /* Each <p> that opens straight onto a block tag is followed to its own </p>
+       (counting the <p>…</p> pairs inside it). The pair is removed only when the
+       paragraph holds nothing but block HTML; if text shares the paragraph with a
+       shortcode, the build stops, because no rewrite of it is valid HTML. */ -}}
+{{- range seq 100000 -}}
+  {{- $m := findRE (printf `<p><(?:%s)[\s>/]` $block) $rest 1 -}}
+  {{- if not $m -}}{{- $out = printf "%s%s" $out $rest -}}{{- break -}}{{- end -}}
+  {{- $pre := index (split $rest (index $m 0)) 0 -}}
+  {{- $out = printf "%s%s" $out $pre -}}
+  {{- $scan := strings.TrimPrefix (printf "%s<p>" $pre) $rest -}}
+  {{- $body := "" -}}
+  {{- $depth := 1 -}}
+  {{- range seq 100000 -}}
+    {{- $tok := findRE `<p[\s>]|</p>` $scan 1 -}}
+    {{- if not $tok -}}{{- break -}}{{- end -}}
+    {{- $t := index $tok 0 -}}
+    {{- $before := index (split $scan $t) 0 -}}
+    {{- $scan = strings.TrimPrefix (printf "%s%s" $before $t) $scan -}}
+    {{- if eq $t "</p>" -}}{{- $depth = sub $depth 1 -}}{{- else -}}{{- $depth = add $depth 1 -}}{{- end -}}
+    {{- if eq $depth 0 -}}{{- $body = printf "%s%s" $body $before -}}{{- break -}}{{- end -}}
+    {{- $body = printf "%s%s%s" $body $before $t -}}
+  {{- end -}}
+  {{- if or (ne $depth 0) (not (findRE (printf `(?:</(?:%s)>|<hr[^>]*>)\s*$` $block) $body)) -}}
+    {{- errorf "%s: a shortcode and ordinary text share one paragraph (…%q). Put a blank line between the shortcode and the text." $where (strings.TrimSpace (substr (plainify $body) -60)) -}}
+  {{- end -}}
+  {{- $out = printf "%s%s" $out $body -}}
+  {{- $rest = $scan -}}
+{{- end -}}
+{{- with findRE (printf `(?:</(?:%s)>|<hr[^>]*>)\s*</p>` $block) $out 1 -}}
+  {{- errorf "%s: text and a shortcode share one paragraph (it ends %q). Put a blank line between the text and the shortcode." $where (index . 0) -}}
+{{- end -}}
+{{- return ($out | safeHTML) -}}
