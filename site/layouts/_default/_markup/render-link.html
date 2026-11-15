@@ -1,4 +1,11 @@
+{{- /* Markdown links: a root-relative destination ("/about/#contact") gets the
+       site's base path. Protocol-relative ("//host/…"), absolute ("https:…",
+       "mailto:…") and "#fragment" destinations are left alone. A relative
+       destination ("about/") would resolve against the page's own address, so
+       it stops the build. */ -}}
 {{- $d := .Destination -}}
-{{- if strings.HasPrefix $d "/" }}{{ $d = partial "url.html" $d }}{{ end -}}
+{{- if and (strings.HasPrefix $d "/") (not (strings.HasPrefix $d "//")) }}{{ $d = partial "url.html" $d }}
+{{- else if not (or (strings.HasPrefix $d "#") (strings.HasPrefix $d "//") (findRE `^[a-zA-Z][a-zA-Z0-9+.-]*:` $d)) }}{{ errorf "%s: relative link %q; write it root-relative, e.g. /about/ (%s)" .Page.File.Path $d .Text }}
+{{- end -}}
 <a href="{{ $d | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text }}</a>
 {{- /* no trailing newline */ -}}

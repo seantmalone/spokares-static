@@ -11,6 +11,6 @@
 {{- $level := or (.Get "level") "2" -}}
 {{- $title := .Get "title" -}}
 {{- if not $title }}{{ errorf "how-row: title is required (%s)" .Position }}{{ end -}}
-{{- $body := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) -}}
+{{- $body := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position) -}}
 <div{{ with .Get "id" }} id="{{ . }}"{{ end }} class="how-row"><div class="how-row__head">{{ if eq $level "3" }}<h3>{{ $title }}</h3>{{ else }}<h2>{{ $title }}</h2>{{ end }}{{ with .Get "intro" }}<p>{{ $.Page.RenderString . }}</p>{{ end }}</div><div class="how-row__body">{{ replace $body "\n" " " | safeHTML }}</div></div>
 {{- /* no trailing newline */ -}}

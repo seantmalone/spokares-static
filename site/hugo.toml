@@ -16,3 +16,7 @@ uglyURLs = false
 [markup.tableOfContents]
   startLevel = 2
   endLevel = 2
+
+# Code blocks get classes, not inline style= attributes (the site allows none).
+[markup.highlight]
+  noClasses = false

@@ -1,0 +1,8 @@
+{{- /* Markdown images, as render-link.html does for links: a root-relative source
+       ("/img/x.png") gets the site's base path; a relative one stops the build. */ -}}
+{{- $d := .Destination -}}
+{{- if and (strings.HasPrefix $d "/") (not (strings.HasPrefix $d "//")) }}{{ $d = partial "url.html" $d }}
+{{- else if not (or (strings.HasPrefix $d "//") (findRE `^[a-zA-Z][a-zA-Z0-9+.-]*:` $d)) }}{{ errorf "%s: relative image %q; write it root-relative, e.g. /img/x.png" .Page.File.Path $d }}
+{{- end -}}
+<img src="{{ $d | safeURL }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }}>
+{{- /* no trailing newline */ -}}

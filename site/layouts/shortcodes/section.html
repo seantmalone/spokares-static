@@ -8,6 +8,6 @@
 
        Other shortcodes may sit inside, each on a line of its own (for example
        {{< net-settings >}}); see partials/markdown-blocks.html. */ -}}
-{{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) -}}
+{{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner "pos" .Position) -}}
 <section{{ with .Get "id" }} id="{{ . }}"{{ end }} class="{{ .Get "class" }}"><div class="{{ or (.Get "inner") "wrap" }}">{{ $html | safeHTML }}</div></section>
 {{- /* no trailing newline */ -}}

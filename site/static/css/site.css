@@ -406,6 +406,9 @@ nav.nav.is-open .nav__list {
   border-bottom: 1px solid rgba(197, 206, 223, .2); box-shadow: 0 18px 30px -18px rgba(0, 0, 0, .7);
 }
 nav.nav.is-open .nav__list { gap: 0; align-items: stretch; }
+/* On a short window (a phone on its side) the open menu scrolls inside itself,
+   so every item can be reached while the page behind it is locked. */
+nav.nav.is-open .nav__list { max-height: calc(100vh - var(--mast-h)); max-height: calc(100dvh - var(--mast-h)); overflow-y: auto; overscroll-behavior: contain; }
 nav.nav.is-open .nav__list > li { width: 100%; }
 nav.nav.is-open .nav__list > li > a:not(.btn) {
   width: 100%; min-height: 52px; padding: 0 4px; font-size: 18px;
@@ -1266,10 +1269,12 @@ nav.footer__links li > a:hover { text-decoration-color: var(--amber); text-decor
    that level (a paragraph, heading, list, image, buttons…) sits in the site
    column with the side gutter instead of running to the window edge.
    (templates/front-page.html, page-how-it-works.html, page-about.html) */
-/* Static port: Groups lose their wp-block-group class, so every div or section
-   (Group, Cover, Spacer) counts as a section here. */
-.page-sections > :not(div, section) { width: var(--wrap); margin-inline: auto; }
-.page-sections > :not(div, section) + :not(div, section) { margin-top: 1em; }
+/* Static port: Groups lose their wp-block-group class; the full-width ones are
+   <section>s (or the About body), so those, the Cover and Spacers run full
+   width. Anything else at this level, including a shortcode's <div>, keeps the
+   site column. */
+.page-sections > :not(section, .wp-block-cover, .wp-block-spacer, .about-body) { width: var(--wrap); margin-inline: auto; }
+.page-sections > :not(section, .wp-block-cover, .wp-block-spacer, .about-body) + :not(section, .wp-block-cover, .wp-block-spacer, .about-body) { margin-top: 1em; }
 
 /* Block editor canvas only (these classes never reach the front end). In the
    post editor WordPress holds page-level blocks to the 760px content width
@@ -1321,19 +1326,20 @@ nav.footer__links li > a:hover { text-decoration-color: var(--amber); text-decor
 /* Without JavaScript the menu can't open, so instead of a Menu button
    that does nothing the links sit in a row of their own under the bar
    (PLAN §3.1: every page works without JavaScript). The two-row header is
-   not sticky. */
-@media (scripting: none) and (max-width: 1019.98px) {
-  .site-header { position: relative; top: auto; }
-  .masthead__bar { flex-wrap: wrap; height: auto; row-gap: 0; }
-  .masthead__bar > .brand, .masthead__bar > .masthead__actions { min-height: var(--mast-h); }
-  .masthead__bar > nav.nav { flex: 1 1 100%; min-width: 0; margin-inline: -12px; }
-  nav.nav .nav__list > li.nav__join { display: none; } /* the bar's Join is in row one */
-  nav.nav .nav__toggle { display: none; }
-  nav.nav .nav__list {
+   not sticky. menu.js puts class "js" on <html>; until it does (no
+   JavaScript, or the script failed to load) this layout is used. */
+@media (max-width: 1019.98px) {
+  html:not(.js) .site-header { position: relative; top: auto; }
+  html:not(.js) .masthead__bar { flex-wrap: wrap; height: auto; row-gap: 0; }
+  html:not(.js) .masthead__bar > .brand, html:not(.js) .masthead__bar > .masthead__actions { min-height: var(--mast-h); }
+  html:not(.js) .masthead__bar > nav.nav { flex: 1 1 100%; min-width: 0; margin-inline: -12px; }
+  html:not(.js) nav.nav .nav__list > li.nav__join { display: none; } /* the bar's Join is in row one */
+  html:not(.js) nav.nav .nav__toggle { display: none; }
+  html:not(.js) nav.nav .nav__list {
     display: flex; flex-direction: row; align-items: center;
     position: static; inset: auto; width: auto; z-index: auto; background: none !important; padding-bottom: 6px;
   }
-  nav.nav .nav__list { flex-wrap: wrap; justify-content: flex-start; gap: 0; }
+  html:not(.js) nav.nav .nav__list { flex-wrap: wrap; justify-content: flex-start; gap: 0; }
 }
 @media (max-width: 900px) {
   :root { --mast-h: 64px; }
