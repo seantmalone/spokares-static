@@ -30,6 +30,18 @@ SITE_DOMAIN = "spokares.org"
 # owner has agreed it cannot be had over https.
 HTTP_ALLOWED = set()
 NOT_ON_RESOURCES = ("groups.io", "ag7qp.com")
+SIGN_IN = "this link needs a sign-in; link to a public page instead"
+
+
+def needs_sign_in(url):
+    """True for an address on a service whose shared pages need an account:
+    Google Drive and Docs, Dropbox, OneDrive, SharePoint, Facebook groups."""
+    u = urlparse(url)
+    host = (u.hostname or "").lower()
+    def on(*names):
+        return any(host == n or host.endswith("." + n) for n in names)
+    return (on("drive.google.com", "docs.google.com", "dropbox.com", "1drv.ms", "onedrive.live.com", "sharepoint.com")
+            or (on("facebook.com") and (u.path + "/").startswith("/groups/")))
 
 
 class DataError(Exception):
@@ -158,6 +170,23 @@ def _list(where, toks, i, indent, parent, same_indent=False):
     return items, i
 
 
+def label_key(k):
+    """A label as it might be mistyped: no spaces, hyphens or underscores, lower
+    case, no plural s. "Call sign", "call-sign" and "callsigns" give "callsign"."""
+    return re.sub(r"[\s_-]", "", k.lower()).rstrip("s")
+
+
+def label_hint(typed, label):
+    how = [w for w, bad in (("one word", bool(re.search(r"[\s-]", typed) and "_" not in label)),
+                            ("lower case", typed != typed.lower())) if bad]
+    return f"the label is {label}" + (f" ({', '.join(how)})" if how else "")
+
+
+def known_label(typed):
+    """The label typed means, if it is one of the labels the files use, written a little wrong."""
+    return next((k for k in sorted(LABELS) if label_key(k) == label_key(typed) and k != typed), None)
+
+
 def _map(where, toks, i, indent):
     out, seen = {}, {}
     while i < len(toks) and toks[i][1] == indent:
@@ -166,14 +195,21 @@ def _map(where, toks, i, indent):
             raise DataError(where, n, "an entry starting with \"-\" among labels; line it up with the other entries")
         m = LINE.match(text)
         if not m:
+            near = re.match(r"([A-Za-z][A-Za-z0-9 _-]*?)\s*:(?:\s|$)", text)
+            near = near and known_label(near.group(1))
+            if near:
+                typed = text.split(":", 1)[0]
+                raise DataError(where, n, f"\"{typed}:\" is not a label; {label_hint(typed, near)}, "
+                                          f"like {near}: \"...\"")
             if ":" not in text:
                 raise DataError(where, n, f"\"{text[:40]}\" has no label; each line is a label, a colon, then a value in quotes")
             raise DataError(where, n, f"\"{text[:40]}\" is not a label and a value; write it like label: \"value\"")
         key = m.group("key")
         if key in seen:
             if key == "callsign":
-                raise DataError(where, n, "this position has a call sign but no role; put back its role line "
-                                          "(starting \"- role:\") above it, or delete this call sign line")
+                raise DataError(where, n, "this position has two call sign lines; keep one (put two call signs "
+                                          "on one line: \"AA7RT, W7UWC\"), or if a role line was deleted, put it "
+                                          "back above this line")
             raise DataError(where, n, f"\"{key}\" is given twice (also on line {seen[key]}); keep one")
         seen[key] = n
         v = _value(where, n, key, m.group("rest") or "")
@@ -210,12 +246,14 @@ MONTHS = ["January", "February", "March", "April", "May", "June", "July", "Augus
 CALL = r"(?:[A-Z0-9]{1,4}/)?(?:[A-Z]{1,2}|[A-Z]\d|\d[A-Z])\d[A-Z]{1,4}(?:/[A-Z0-9]{1,4})?"
 # Words that mark an empty position: a whole phrase anywhere, or a value that
 # is nothing but one of the short words ("Open", "None").
-PLACEHOLDER = re.compile(r"\b(?:vacant|tbd|tba|t\.b\.d|to be (?:filled|named|announced|determined)|unfilled|"
-                         r"position open|open position|volunteer needed)\b|\((?:open|none|vacant)\)", re.I)
-PLACEHOLDER_ONLY = re.compile(r"\W*(?:open|none|nobody|n/?a|-+)\W*", re.I)
+PLACEHOLDER = re.compile(r"\b(?:vacan(?:t|cy|cies)|unassigned|tbd|tba|t\.b\.d|"
+                         r"to be (?:filled|named|announced|determined|appointed)|unfilled|"
+                         r"position open|open position|position (?:is )?available|available position|"
+                         r"volunteers? (?:needed|wanted))\b|\((?:open|none|vacant|empty)\)", re.I)
+PLACEHOLDER_ONLY = re.compile(r"\W*(?:open|none|nobody|n/?a|empty|pending|-+)\W*", re.I)
 # ...or a role or call sign that ends in one: "AEC, Hospital: open", "(N/A)",
-# "seeking volunteer", "(position currently open)".
-PLACEHOLDER_END = re.compile(r"(?:\b(?:open|n/a|vacant|tbd|to be filled)|\bseeking\b.*)\W*$", re.I)
+# "seeking volunteer", "(position currently open)", "AEC, Training: pending".
+PLACEHOLDER_END = re.compile(r"(?:\b(?:open|n/a|vacant|tbd|to be filled|pending|empty)|\bseeking\b.*)\W*$", re.I)
 MARKUP = re.compile(r"[<>*_`\[\]{}\\]")
 FILE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.(docx|pdf)$")
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -246,6 +284,18 @@ SCHEMA_RESOURCES = {
 }
 
 
+def _labels(schema):
+    if isinstance(schema, dict):
+        for k, v in schema.items():
+            yield k.rstrip("?")
+            yield from _labels(v)
+    elif isinstance(schema, list):
+        yield from _labels(schema[0])
+
+
+LABELS = set(_labels(SCHEMA_FACTS)) | set(_labels(SCHEMA_RESOURCES))
+
+
 def placeholder(v):
     return bool(PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v) or PLACEHOLDER_END.search(v))
 
@@ -266,15 +316,20 @@ class Checker:
                 self.add(line, f"\"{name}\" should have labels indented under it, not a list or a value")
                 return
             allowed = {k.rstrip("?"): k.endswith("?") for k in schema}
+            meant = set()
             for k, (v, n) in node.items():
                 if k not in allowed:
-                    near = [a for a in allowed if a.lower() == k.lower()]
-                    hint = f"did you mean \"{near[0]}\"? Labels are lower case" if near else \
-                        "the labels allowed here are " + ", ".join(sorted(allowed))
-                    self.add(n, f"unknown label \"{k}\" under \"{name}\"; {hint}")
+                    near = [a for a in allowed if label_key(a) == label_key(k)]
+                    if near:
+                        meant.add(near[0])
+                        self.add(n, f"\"{k}:\" is not a label here; {label_hint(k, near[0])}, "
+                                    f"like {near[0]}: \"...\"")
+                        continue
+                    self.add(n, f"unknown label \"{k}\" under \"{name}\"; the labels allowed here are "
+                                + ", ".join(sorted(allowed)))
             for k, optional in allowed.items():
                 if k not in node:
-                    if not optional:
+                    if not optional and k not in meant:
                         self.add(line, f"\"{name}\" is missing its \"{k}\" line; put it back")
                     continue
                 v, n = node[k]
@@ -415,6 +470,8 @@ class Checker:
         host = (u.hostname or "").lower()
         if "@" in u.netloc or "." not in host:
             return "is not a normal web address; copy it again from the page"
+        if needs_sign_in(v):
+            return f"is a link that needs a sign-in; link to a public page instead"
         for h in NOT_ON_RESOURCES:
             if host == h or host.endswith("." + h):
                 return f"is on {h}, which is not linked from Resources"

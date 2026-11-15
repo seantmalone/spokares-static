@@ -182,20 +182,20 @@ class Labels(Case):
     """m2: unknown or renamed labels are refused, required ones must be there."""
 
     def test_capitalised_label(self):
-        self.fails(F, '  time: "8:00 PM"', '  Time: "8:00 PM"', 'unknown label "Time"', 'did you mean "time"')
+        self.fails(F, '  time: "8:00 PM"', '  Time: "8:00 PM"', '"Time:" is not a label here', 'the label is time (lower case)')
 
     def test_extra_capitalised(self):
-        self.fails(F, '    extra: "then', '    Extra: "then', 'unknown label "Extra"')
+        self.fails(F, '    extra: "then', '    Extra: "then', 'the label is extra (lower case)')
 
     def test_callsign_renamed(self):
         first = self.fails(F, '      callsign: "K7MHG"', '      call: "K7MHG"', 'unknown label "call"')
         self.assertIn("leadership.unit[3]", first)
 
     def test_misspelled_opens(self):
-        self.fails(R, '        opens: "NWS Spokane"', '        open: "NWS Spokane"', 'unknown label "open"')
+        self.fails(R, '        opens: "NWS Spokane"', '        open: "NWS Spokane"', 'the label is opens')
 
     def test_note_capitalised(self):
-        self.fails(R, '        note: "Free practice', '        Note: "Free practice', 'unknown label "Note"')
+        self.fails(R, '        note: "Free practice', '        Note: "Free practice', 'the label is note (lower case)')
 
     def test_missing_required(self):
         self.fails(F, '    version: "July 2024"\n', '', 'missing its "version"')
@@ -444,8 +444,86 @@ class EditorExperience(Case):
                    "retype it as a straight quote")
 
     def test_role_line_deleted(self):
+        # Looks the same as two call sign lines in one position (G1); the line names both causes.
         self.fails(F, '    - role: "AEC, Hospital Coordinator"\n', "",
-                   "this position has a call sign but no role")
+                   "two call sign lines", "if a role line was deleted, put it back")
+
+
+class Round4(Case):
+    """F2, G1: vacancy wording and labels written almost right."""
+
+    def passes(self, name, old, new):
+        self.edit(name, old, new)
+        code, out = self.run_checker()
+        self.assertEqual(code, 0, out)
+
+    def fresh(self):
+        self.tearDown()
+        self.setUp()
+
+    def test_vacancy_wording_is_refused(self):
+        role, call = '"AEC, Hospital Coordinator"', 'callsign: "K7MHG"'
+        for old, new in [(role, '"AEC, Hospital Coordinator (position available)"'),
+                         (role, '"AEC, Net Manager (unassigned; EC covering)"'),
+                         (role, '"AEC, Hospital Coordinator — vacancy, ask the EC"'),
+                         (role, '"AEC, Hospital Coordinator (vacant since spring)"'),
+                         (role, '"AEC, Hospital Coordinator, to be appointed"'),
+                         (role, '"AEC, Training (volunteers wanted)"'),
+                         (role, '"AEC, Training (empty)"'),
+                         (role, '"AEC, Training: pending"'),
+                         (call, 'callsign: "Pending"'),
+                         (call, 'callsign: "Unassigned"'),
+                         (call, 'callsign: "(position available)"'),
+                         (call, 'callsign: "(empty)"'),
+                         (call, 'callsign: "to be appointed"'),
+                         (call, 'callsign: "Volunteers wanted"')]:
+            with self.subTest(new=new):
+                self.fresh()
+                self.fails(F, old, new, "empty position")
+
+    def test_ordinary_words_still_pass(self):
+        role = '"AEC, Hospital Coordinator"'
+        for new in ('"AEC, Public Events and Open House"', '"AEC, Openings and Closings"',
+                    '"AEC, Hospital Coordinator (none of the above)"', '"AEC, Pending Traffic Desk"',
+                    '"AEC, Emergency Operations Center Liaison"'):
+            with self.subTest(new=new):
+                self.fresh()
+                self.passes(F, role, new)
+
+    def test_sign_in_links_on_resources(self):
+        # F5
+        old = 'url: "https://hamstudy.org/"'
+        for url in ("https://drive.google.com/drive/folders/1AbC", "https://docs.google.com/spreadsheets/d/1AbC/edit",
+                    "https://www.dropbox.com/s/abc/roster.xlsx", "https://1drv.ms/x/s!abc", "https://onedrive.live.com/?id=1",
+                    "https://contoso.sharepoint.com/sites/ares", "https://www.facebook.com/groups/spokaneares"):
+            with self.subTest(url=url):
+                self.fresh()
+                self.fails(R, old, f'url: "{url}"', "needs a sign-in; link to a public page instead")
+
+    def test_two_call_sign_lines(self):
+        first = self.fails(F, 'callsign: "W7TSC"', 'callsign: "W7TSC"\n      callsign: "K7ABC"',
+                           "this position has two call sign lines; keep one",
+                           'put two call signs on one line: "AA7RT, W7UWC"')
+        self.assertLess(len(first), 300)
+
+    def test_label_written_as_two_words(self):
+        self.fails(F, 'callsign: "NV2Z"', 'call sign: "NV2Z"', "the label is callsign (one word)")
+
+    def test_label_with_a_hyphen_or_capital_or_plural(self):
+        for old, new, want in [('callsign: "NV2Z"', 'call-sign: "NV2Z"', "the label is callsign"),
+                               ('callsign: "NV2Z"', 'Callsign: "NV2Z"', "the label is callsign"),
+                               ('  street: "1121 W Gardner Ave"', '  Street: "1121 W Gardner Ave"', "the label is street"),
+                               ('    version: "July 2024"', '    versions: "July 2024"', "the label is version"),
+                               ('winlink_nights: "second and fourth"', 'winlink nights: "second and fourth"',
+                                "the label is winlink_nights")]:
+            with self.subTest(new=new):
+                self.fresh()
+                self.edit(F, old, new)
+                code, out = self.run_checker()
+                self.assertEqual(code, 1, out)
+                lines = [l for l in out.splitlines() if " line " in l]
+                self.assertEqual(len(lines), 1, out)
+                self.assertIn(want, lines[0])
 
 
 if __name__ == "__main__":
