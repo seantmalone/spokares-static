@@ -24,6 +24,7 @@ Self-test: python3 site/tools/test_check_site.py
 import csv
 import datetime
 import html
+import io
 import re
 import sys
 import zipfile
@@ -331,8 +332,12 @@ def read_facts(path):
     return emails, files, problems
 
 
-CLEAN_WORD = ("in Word accept all changes and delete comments, then File › Info › Inspect Document › "
-              "remove personal information, save, and upload it again")
+CLEAN_WORD = ("in Word accept all changes, delete all comments, and remove personal information from the file's "
+              "properties (Word for Windows: File › Info › Check for Issues › Inspect Document; Word for Mac: "
+              "Tools › Protect Document › Remove personal information on save), then save and upload again")
+# Names that are not a person: the group's own, and what Word writes in place
+# of a name after "remove personal information".
+ANONYMOUS = ("", FILES_AUTHOR, "Author")
 
 
 def docx_people(z):
@@ -345,11 +350,12 @@ def docx_people(z):
         t = z.read(n).decode("utf-8", "replace")
         for k, v in re.findall(r'\b(w:author|w15:author|w15:userId|w:initials)="([^"]*)"', t):
             v = html.unescape(v).strip()
-            if v and v != FILES_AUTHOR and k != "w:initials":
+            if v not in ANONYMOUS and k != "w:initials":
                 names.add(v)
         if re.search(r"<w:(?:ins|del|moveFrom|moveTo)\b", t):
             out.append(f"has tracked changes; {CLEAN_WORD}")
-        if re.fullmatch(r"word/comments\w*\.xml", n) and re.search(r"<w(?:15|16cid|16cex)?:comment\w*\b", t):
+        # A comment itself; the parts that list comments may stay behind empty.
+        if re.search(r"<w:comment[\s>/]", t):
             out.append(f"has comments; {CLEAN_WORD}")
         if n == "docProps/app.xml":
             for k in ("Company", "Manager"):
@@ -361,16 +367,24 @@ def docx_people(z):
     return sorted(set(out), key=out.index)
 
 
-def docx_text(path):
-    """Text and metadata of a Word file: (text, {creator, lastModifiedBy}, error)."""
+TEXT_PART = re.compile(r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml"
+                       r"|word/_rels/[^/]+\.rels|docProps/[^/]+\.xml")
+
+
+def docx_text(path, depth=0):
+    """Text and metadata of a Word file: (text, {creator, lastModifiedBy}, error).
+    The text includes the properties (title, keywords, description, custom
+    ones), image alt text, link targets and any Word file embedded in it."""
     try:
         z = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError):
         return "", {}, "is not a readable Word document"
     out, meta = [], {"people": docx_people(z)}
     for n in z.namelist():
-        if not re.fullmatch(r"word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml"
-                            r"|word/_rels/[^/]+\.rels|docProps/[^/]+\.xml", n):
+        if re.fullmatch(r"word/embeddings/[^/]+\.docx", n) and depth < 2:
+            out.append(docx_text(io.BytesIO(z.read(n)), depth + 1)[0])
+            continue
+        if not TEXT_PART.fullmatch(n):
             continue
         t = z.read(n).decode("utf-8", "replace")
         if n == "docProps/core.xml":
@@ -380,9 +394,10 @@ def docx_text(path):
         if n.endswith(".rels"):
             out.append(" ".join(unquote(x) for x in re.findall(r'Target="([^"]*)"', t)))
             continue
+        out.append(html.unescape(" ".join(re.findall(r'\b(?:descr|title)="([^"]*)"', t))))
         t = re.sub(r"</w:p>|<w:br/>|<w:tab/>", "\n", t)
         out.append(html.unescape(re.sub(r"<[^>]+>", "", t)))
-    return "\n".join(out), meta, None
+    return "\n".join(out), (meta if depth == 0 else {}), None
 
 
 def pdf_parts(path):
@@ -658,7 +673,7 @@ def main():
             for p in meta.pop("people", []):
                 problems.append(f"{rel}: {p}")
             for k, v in meta.items():
-                if v not in ("", FILES_AUTHOR):
+                if v not in ANONYMOUS:
                     problems.append(f"{rel}: the document's {k} is {v!r}; set it to {FILES_AUTHOR!r} "
                                     f"or empty ({CLEAN_WORD})")
         elif name.lower().endswith(".pdf"):

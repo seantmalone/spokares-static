@@ -45,7 +45,7 @@ files:
 
 
 def docx(text="Phone: ________  Email: ________", creator="Spokane County ARES-ACS", modified="", rels="",
-         body="", parts=None, company=""):
+         body="", parts=None, company="", core=""):
     """A small Word file: one paragraph of text, the two author fields, and any
     extra XML in the body or extra parts ({name: xml})."""
     b = io.BytesIO()
@@ -57,7 +57,7 @@ def docx(text="Phone: ________  Email: ________", creator="Spokane County ARES-A
         z.writestr("word/document.xml", f"<w:document><w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p>{body}</w:body></w:document>")
         z.writestr("word/_rels/document.xml.rels", f"<Relationships>{rels}</Relationships>")
         z.writestr("docProps/core.xml", f"<cp:coreProperties><dc:creator>{creator}</dc:creator>"
-                                        f"<cp:lastModifiedBy>{modified}</cp:lastModifiedBy></cp:coreProperties>")
+                                        f"<cp:lastModifiedBy>{modified}</cp:lastModifiedBy>{core}</cp:coreProperties>")
     return b.getvalue()
 
 
@@ -488,8 +488,12 @@ class FileContents(Case):
         self.site.write_bytes("files/ares-application.docx", docx("Call Bob at (509) 555-1234"))
         self.assertFails("files/ares-application.docx: something that looks like a phone number")
 
-    def test_docx_blank_phone_line_is_fine(self):
-        self.site.write_bytes("files/ares-application.docx", docx("Phone: (____) ____-______  Email: info@spokares.org"))
+    def test_docx_numbers_that_are_not_phones(self):
+        # The application's own numbers: blanks, the contact address, ZIP, FRN, frequency,
+        # form numbers, a year range and times. A looser phone pattern refuses one of them.
+        self.site.write_bytes("files/ares-application.docx", docx(
+            "Phone: (____) ____-______  Email: info@spokares.org  Spokane, WA 99260-0100  FRN 0012345678  "
+            "147.300 MHz  ICS-213  2024-2025  12:30 to 3:30 PM  Level 1-2-3  IS-100.c  (509) ___-____"))
         self.assertPasses()
 
     def test_docx_author(self):
@@ -543,7 +547,7 @@ class DocumentPeople(Case):
         self.site.write_bytes("files/ares-application.docx",
                               docx(body='<w:ins w:id="1" w:author="Jane Member" w:date="2026-01-01T00:00:00Z"><w:r><w:t>x</w:t></w:r></w:ins>'))
         out = self.assertFails("files/ares-application.docx: has tracked changes")
-        self.assertIn("accept all changes and delete comments", out)
+        self.assertIn("accept all changes, delete all comments", out)
         self.assertIn("Jane Member", out)
 
     def test_deletion_by_group_still_refused(self):
@@ -558,9 +562,59 @@ class DocumentPeople(Case):
 
     def test_people_part(self):
         self.site.write_bytes("files/ares-application.docx", docx(parts={
-            "word/people.xml": '<w15:people><w15:person w15:author="Jane Member"><w15:presenceInfo w15:providerId="AD" w15:userId="jane@example.com"/></w15:person></w15:people>'}))
-        out = self.assertFails("files/ares-application.docx: names a person")
+            "word/people.xml": '<w15:people><w15:person w15:author="Jane Member"><w15:presenceInfo w15:providerId="AD" w15:userId="S-1-5-21"/></w15:person></w15:people>'}))
+        out = self.assertFails("files/ares-application.docx: names a person (Jane Member")
         self.assertIn("Inspect Document", out)
+
+    def test_people_part_user_id_alone(self):
+        # T12: the sign-in id is refused even when the author name is the group's.
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/people.xml": '<w15:people><w15:person w15:author="Spokane County ARES-ACS"><w15:presenceInfo w15:providerId="AD" w15:userId="jane@example.com"/></w15:person></w15:people>'}))
+        self.assertFails("files/ares-application.docx: names a person (jane@example.com)")
+
+    def test_empty_comment_parts_are_fine(self):
+        # T5: Word keeps empty comment parts after the comments are deleted.
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/comments.xml": '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:comments>',
+            "word/commentsExtended.xml": '<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"/>',
+            "word/commentsIds.xml": '<w16cid:commentsIds xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid"/>',
+            "word/commentsExtensible.xml": '<w16cex:commentsExtensible xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex"/>'}))
+        self.assertPasses()
+
+    def test_anonymous_author_is_fine(self):
+        # T5: after "remove personal information" Word writes "Author".
+        self.site.write_bytes("files/ares-application.docx", docx(creator="Author", modified="Author", parts={
+            "word/people.xml": '<w15:people><w15:person w15:author="Author"/></w15:people>'}))
+        self.assertPasses()
+
+    def test_cleaning_steps_for_windows_and_mac(self):
+        self.site.write_bytes("files/ares-application.docx", docx(creator="Jane Member"))
+        out = self.assertFails("accept all changes, delete all comments, and remove personal information from the "
+                               "file's properties")
+        self.assertIn("Word for Windows: File › Info › Check for Issues › Inspect Document", out)
+        self.assertIn("Word for Mac: Tools › Protect Document › Remove personal information on save", out)
+        self.assertIn("then save and upload again", out)
+
+    def test_contact_details_in_properties_and_alt_text(self):
+        # T5: custom properties, keywords, description, title, image alt text.
+        cases = {
+            "custom": docx(parts={"docProps/custom.xml": '<Properties><property name="Owner"><vt:lpwstr>bob@gmail.com</vt:lpwstr></property></Properties>'}),
+            "keywords": docx(core="<cp:keywords>bob@gmail.com</cp:keywords>"),
+            "description": docx(core="<dc:description>Call 509-555-1234</dc:description>"),
+            "title": docx(core="<dc:title>bob@gmail.com</dc:title>"),
+            "alt text": docx(body='<w:p><w:r><w:drawing><wp:docPr id="1" name="Picture 1" descr="Call Bob at 509-555-1234"/></w:drawing></w:r></w:p>'),
+        }
+        for what, data in cases.items():
+            with self.subTest(what=what):
+                self.site.write_bytes("files/ares-application.docx", data)
+                out = self.assertFails("files/ares-application.docx: ")
+                self.assertTrue("bob@gmail.com" in out or "509-555-1234" in out, out)
+
+    def test_contact_details_in_an_embedded_word_file(self):
+        self.site.write_bytes("files/ares-application.docx", docx(parts={
+            "word/embeddings/Microsoft_Word_Document1.docx": docx("Questions: bob@gmail.com, 509-555-1234")}))
+        out = self.assertFails("files/ares-application.docx: e-mail address not allowed: bob@gmail.com")
+        self.assertIn("looks like a phone number: '509-555-1234'", out)
 
     def test_company(self):
         self.site.write_bytes("files/ares-application.docx", docx(company="Acme Plumbing"))
@@ -586,9 +640,17 @@ class DocumentPeople(Case):
                               b"%PDF-1.7\n1 0 obj<</Author<FEFF004A0061006E0065>>>endobj\n%%EOF\n")
         self.assertFails("the PDF's author is 'Jane'")
 
-    def test_pdf_creator_tool_is_fine(self):
+    def test_pdf_program_names_are_fine(self):
+        # The program that made a PDF is not a person, in any of the forms PDFs use.
         self.site.write_bytes("files/arrl-ares-task-book.pdf",
-                              b"%PDF-1.7\n<xmp:CreatorTool>Adobe InDesign</xmp:CreatorTool>\n%%EOF\n")
+                              b"%PDF-1.7\n1 0 obj<</Creator(Microsoft Word)/Producer(macOS Quartz)>>endobj\n"
+                              b"<rdf:Description xmp:CreatorTool=\"Adobe InDesign\" pdf:Producer=\"Acrobat\"/>\n"
+                              b"<xmp:CreatorTool>Adobe InDesign</xmp:CreatorTool>\n%%EOF\n")
+        self.assertPasses()
+
+    def test_pdf_group_author_is_fine(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              b"%PDF-1.7\n1 0 obj<</Author(Spokane County ARES-ACS)>>endobj\n%%EOF\n")
         self.assertPasses()
 
 
