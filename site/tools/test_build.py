@@ -341,6 +341,19 @@ class InlineHtml(Build):
         self.assertIn("&lt; 5 minutes", page)
         self.assertIn("&lt;kbd&gt;", page)
 
+    def test_html_in_about_is_one_error(self):
+        # G1: the contents list does not add errors of its own when the page text was refused.
+        self.edit("content/about.md", "## Contact {#contact}", "Our <strong>club</strong>.\n\n## Contact {#contact}")
+        errors = [l for l in self.refused().splitlines() if l.startswith("ERROR") and "error building site" not in l]
+        self.assertEqual(len(errors), 1, errors)
+
+    def test_removed_heading_id_named_in_toc_labels(self):
+        # G1 (M53): the message says which id went missing and how to put it back.
+        self.edit("content/about.md", "## History and W7GBU {#history}", "## History and W7GBU")
+        e = self.one_line(self.refused())
+        self.assertIn("site/content/about.md: a chapter heading lost its id {#history}", e)
+        self.assertIn("put {#history} back at the end of that heading line", e)
+
     def test_ignore_logs_in_config(self):
         (self.site / "hugo.toml").write_text((self.site / "hugo.toml").read_text(encoding="utf-8")
                                               + '\nignoreLogs = ["warning-goldmark-raw-html"]\n', encoding="utf-8")
@@ -447,6 +460,28 @@ class BuildScript(unittest.TestCase):
 
     def test_live_with_a_github_io_address(self):
         self.refused("https://example.github.io/spokares-static/", "--live", says="github.io")
+
+    def test_live_refuses_addresses_that_are_not_the_real_site(self):
+        # G3
+        for addr in ("http://spokares.org/", "https://localhost/", "https://127.0.0.1/", "https://spokares.org/?x=1",
+                     "https://spokares.org/#top", "https://user@spokares.org/", "http://localhost:1313/"):
+            with self.subTest(addr=addr):
+                self.refused(addr, "--live", says="--live needs the real site's address")
+
+    def test_hugo_error_prints_our_line_first(self):
+        # F6: the one-line message from the templates comes first, then a note, then Hugo's own lines.
+        about = self.site / "content" / "about.md"
+        text = about.read_text(encoding="utf-8")
+        about.write_text(text.replace("## Contact {#contact}", "Our <strong>club</strong>.\n\n## Contact {#contact}"),
+                         encoding="utf-8")
+        try:
+            code, out = self.run_sh()
+        finally:
+            about.write_text(text, encoding="utf-8")
+        self.assertEqual(code, 1, out[-2000:])
+        after = out[out.index("== 2."):].splitlines()[1:3]
+        self.assertRegex(after[0], r"^ERROR site/content/about\.md:\d+: HTML tags are not allowed in page text; remove <strong>")
+        self.assertEqual(after[1], "Later lines are consequences of the first.")
 
     def test_preview_for_any_address_and_no_arguments(self):
         # No arguments is the local preview; a preview may be built for any address.

@@ -12,8 +12,11 @@
   {{- $id := index . 1 -}}
   {{- $items = $items | append (dict "id" $id "label" (index $labels $id | default (index . 2 | plainify | htmlUnescape | strings.TrimSpace))) -}}
 {{- end -}}
-{{- if not $items }}{{ errorf "about: no chapter headings found for the contents list" }}{{ end -}}
-{{- range $id, $_ := $labels }}{{ if not (where $items "id" $id) }}{{ errorf "about: toc_labels names %q, but no chapter heading has that id" $id }}{{ end }}{{ end -}}
+{{- /* When the page text was refused (source-guard.html), it is not rendered: say nothing more. */ -}}
+{{- if not (.Store.Get "spk-bad-source") -}}
+{{- if not $items }}{{ errorf "site/content/about.md: no chapter headings found for the contents list; each chapter starts with a line like ## Contact {#contact}" }}{{ end -}}
+{{- range $id, $_ := $labels }}{{ if not (where $items "id" $id) }}{{ errorf "site/content/about.md: a chapter heading lost its id {#%s} (toc_labels at the top of the file names it, and other pages may link to it); put {#%s} back at the end of that heading line" $id $id }}{{ end }}{{ end -}}
+{{- end -}}
 {{- $title := "On this page" -}}
 {{- $list := "" -}}
 {{- range $items }}{{ $list = printf "%s<li><a href=\"#%s\">%s</a></li>" $list .id (.label | htmlEscape) }}{{ end -}}

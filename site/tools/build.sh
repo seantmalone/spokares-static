@@ -31,10 +31,15 @@ case "${2:-}" in
 esac
 if [ $# -gt 2 ]; then echo "build.sh: too many arguments. $usage" >&2; exit 2; fi
 if [ "$preview" = false ]; then
-  # The live build is for the real site: a real address, not the github.io preview.
-  host=$(python3 -c 'import sys, urllib.parse; print((urllib.parse.urlparse(sys.argv[1]).hostname or "").lower())' "${1:-}")
+  # The live build is for the real site: a plain https address on a real
+  # host, not the github.io preview and not this computer.
+  host=$(python3 -c '
+import sys, urllib.parse
+u = urllib.parse.urlparse(sys.argv[1])
+plain = u.scheme == "https" and not (u.query or u.fragment or u.params or "@" in u.netloc or u.port)
+print((u.hostname or "").lower() if plain else "")' "${1:-}")
   case "$host" in
-    "") echo "build.sh: --live needs the real site's address, like https://spokares.org/. $usage" >&2; exit 2 ;;
+    ""|localhost|127.*|::1|0.0.0.0) echo "build.sh: --live needs the real site's address, like https://spokares.org/. $usage" >&2; exit 2 ;;
     github.io|*.github.io) echo "build.sh: a github.io address is the preview; build it without --live. $usage" >&2; exit 2 ;;
   esac
 fi
@@ -45,7 +50,17 @@ echo "== 1. Checking the data files"
 python3 site/tools/check_data.py
 
 echo "== 2. Building with Hugo for $base_url"
-HUGO_PARAMS_PREVIEW=$preview hugo --source site --cleanDestinationDir --panicOnWarning --baseURL "$base_url"
+if ! hugo_out=$(HUGO_PARAMS_PREVIEW=$preview hugo --source site --cleanDestinationDir --panicOnWarning \
+    --baseURL "$base_url" 2>&1); then
+  # The first message from our own templates says what to fix; put it first.
+  first=$(printf '%s\n' "$hugo_out" | grep -m 1 '^ERROR ' | grep -v 'error building site' || true)
+  if [ -n "$first" ]; then
+    printf '%s\n%s\n' "$first" "Later lines are consequences of the first."
+  fi
+  printf '%s\n' "$hugo_out"
+  exit 1
+fi
+printf '%s\n' "$hugo_out"
 
 echo "== 3. Checking the built site"
 if [ -n "$base_path" ]; then

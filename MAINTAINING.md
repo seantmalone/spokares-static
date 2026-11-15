@@ -171,9 +171,35 @@ as they are. These things trip people up in `site/content/`:
 ## If a change does not appear
 
 Open the "Actions" tab on GitHub. A red mark means the checks refused the
-change. Each failed check prints one plain line saying what to fix, naming
-the file and the line (for example
-`site/data/facts.yaml line 7: time: a quote mark is missing; …`).
+change; open the run and its "Build and check" step. The first line printed
+for a problem says what to fix:
+
+- A problem in a data file names the file and the line, for example
+  `site/data/facts.yaml line 7: time: a quote mark is missing; …`.
+- HTML typed into a page file names the file and the line, for example
+  `site/content/members.md:12: HTML tags are not allowed in page text; …`.
+  When the build stops like this, that line comes first, followed by
+  "Later lines are consequences of the first."; the lines after it follow
+  from the first problem, so fix that one.
+- A problem found on a built page names the page and the files its words
+  come from, for example `members/index.html: … (from
+  site/content/members.md or site/data/facts.yaml)`:
+
+  | Built page | Its words come from |
+  |---|---|
+  | `index.html` (Home) | `site/content/_index.md`, `site/data/facts.yaml` |
+  | `how-it-works/index.html` | `site/content/how-it-works.md`, `site/data/facts.yaml` |
+  | `about/index.html` | `site/content/about.md`, `site/data/facts.yaml` |
+  | `members/index.html` | `site/content/members.md`, `site/data/facts.yaml` |
+  | `resources/index.html` | `site/content/resources.md`, `site/data/resources.yaml` |
+
+  (The designed parts of each page are in `site/layouts/`; see "Where the
+  words are" above.)
+- A problem in a hosted file names it, for example
+  `files/ares-application.docx: …`.
+- If the first line says "The site's own self-tests failed", your change
+  did not cause it; ask whoever looks after the machinery.
+
 The published site is untouched until a change passes. The usual causes
 are a deleted quote mark in `facts.yaml`, a value typed without quotes, a
 missing empty line next to a `{{< … >}}` line, a date where only a rule
