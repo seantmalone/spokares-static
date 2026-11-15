@@ -129,7 +129,8 @@ as they are. These things trip people up in `site/content/`:
   and names the line. Plain text such as "< 5 minutes" is fine.
 - A line such as `{.lede}`, `{.lines}`, `{.seq}` or `{.m-line}` gives the
   paragraph or list just above it its look. It must directly follow that
-  paragraph or list, with no empty line between them.
+  paragraph or list, with no empty line between them; the check refuses
+  it otherwise.
 
 ### Where the words are
 

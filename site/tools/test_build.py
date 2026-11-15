@@ -354,6 +354,16 @@ class InlineHtml(Build):
         self.assertIn("site/content/about.md: a chapter heading lost its id {#history}", e)
         self.assertIn("put {#history} back at the end of that heading line", e)
 
+    def test_attribute_line_after_an_empty_line(self):
+        # G2: {.lede} below an empty line would silently lose its look.
+        self.edit("content/resources.md", "keeps it current.\n{.lede}", "keeps it current.\n\n{.lede}")
+        n = self.line_of("content/resources.md", "{.lede}")
+        e = self.one_line(self.refused())
+        self.assertIn(f"resources.md:{n}: remove the empty line above {{.lede}}", e)
+
+    def test_attribute_lines_in_place_are_fine(self):
+        self.built()
+
     def test_ignore_logs_in_config(self):
         (self.site / "hugo.toml").write_text((self.site / "hugo.toml").read_text(encoding="utf-8")
                                               + '\nignoreLogs = ["warning-goldmark-raw-html"]\n', encoding="utf-8")
