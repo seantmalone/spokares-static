@@ -72,7 +72,7 @@ ARRL membership isn’t needed to join.
 {{< chapter >}}
 ## Training and task books {#training-path}
 
-Task books list what each level requires. The Emergency Coordinator or any AEC signs off items; the EC signs off each level.
+Task books list what each level requires and who signs off on it.
 
 ### ACS Position Task Book {#acs-task-book}
 
@@ -94,7 +94,7 @@ Higher levels keep up the New Member requirements. Encouraged: weekly check-ins,
 ### Equipment {#equipment}
 
 - **Personal kit:** food, water, clothing, hygiene items and medication for 24 hours minimum, 72 preferred.
-- **Radio kit:** 2 m and 70 cm radios, spare batteries, antenna, coax and power for 24 to 72 hours. HF and Winlink encouraged.
+- **Radio kit:** your radios, spare batteries, antenna, coax, connectors, small tools and power for 24 to 72 hours.
 {{< /chapter >}}
 
 {{< chapter >}}
