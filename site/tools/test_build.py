@@ -363,8 +363,21 @@ class Regressions(Build):
 class BuildScript(unittest.TestCase):
     """R11: build.sh refuses arguments it does not understand, in one line."""
 
+    # Always a copy with the self-test step skipped: if a refusal ever stops
+    # working, the test builds that copy and fails, instead of starting a
+    # full build (and its self-tests) in the real repository.
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.site = copy_site(Path(cls._tmp.name), fixtures=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
     def run_sh(self, *args):
-        r = subprocess.run(["sh", str(TOOLS / "build.sh"), *args], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["sh", str(self.site / "tools" / "build.sh"), *args], capture_output=True, text=True,
+                           timeout=300, env={**os.environ, "BUILD_SKIP_SELF_TESTS": "1"})
         return r.returncode, r.stdout + r.stderr
 
     def test_live_without_an_address(self):
@@ -382,6 +395,36 @@ class BuildScript(unittest.TestCase):
         code, out = self.run_sh("https://spokares.org/", "--live", "extra")
         self.assertEqual(code, 2)
         self.assertIn("too many arguments", out)
+
+    def refused(self, *args, says):
+        code, out = self.run_sh(*args)
+        self.assertEqual(code, 2, out)
+        self.assertEqual(len(out.strip().splitlines()), 1, out)
+        self.assertIn(says, out)
+        self.assertIn("usage: site/tools/build.sh", out)
+
+    def test_missing_scheme(self):
+        self.refused("spokares.org", says="must be the site's address, starting with http")
+
+    def test_flag_first(self):
+        self.refused("--live", "https://spokares.org/", says="must be the site's address, starting with http")
+
+    def test_live_with_an_empty_address(self):
+        # T7
+        self.refused("", "--live", says="--live needs the real site's address")
+
+    def test_live_with_the_scheme_alone(self):
+        self.refused("https://", "--live", says="--live needs the real site's address")
+
+    def test_live_with_a_github_io_address(self):
+        self.refused("https://example.github.io/spokares-static/", "--live", says="github.io")
+
+    def test_preview_for_any_address_and_no_arguments(self):
+        # No arguments is the local preview; a preview may be built for any address.
+        for args, base in (((), "http://localhost/spokares-static/"), (("https://spokares.org/",), "https://spokares.org/")):
+            code, out = self.run_sh(*args)
+            self.assertEqual(code, 0, out[-2000:])
+            self.assertIn(f"Building with Hugo for {base}", out)
 
 
 class PreviewSwitch(Build):

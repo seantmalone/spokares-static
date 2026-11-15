@@ -28,6 +28,14 @@ case "${2:-}" in
   *) echo "build.sh: unknown argument ${2}. $usage" >&2; exit 2 ;;
 esac
 if [ $# -gt 2 ]; then echo "build.sh: too many arguments. $usage" >&2; exit 2; fi
+if [ "$preview" = false ]; then
+  # The live build is for the real site: a real address, not the github.io preview.
+  host=$(python3 -c 'import sys, urllib.parse; print((urllib.parse.urlparse(sys.argv[1]).hostname or "").lower())' "${1:-}")
+  case "$host" in
+    "") echo "build.sh: --live needs the real site's address, like https://spokares.org/. $usage" >&2; exit 2 ;;
+    github.io|*.github.io) echo "build.sh: a github.io address is the preview; build it without --live. $usage" >&2; exit 2 ;;
+  esac
+fi
 case "$base_url" in */) ;; *) base_url="$base_url/" ;; esac
 base_path=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).path.rstrip("/"))' "$base_url")
 
