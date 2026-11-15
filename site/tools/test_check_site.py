@@ -644,6 +644,22 @@ class Dates(Case):
         out = self.site.run("--base", base)[1]
         self.assertNotIn("printed date", out)
 
+    def test_more_numeric_and_spelled_dates(self):
+        for text in ["Moved to 12-18-2026.", "Moved to 18/12/2026.", "Moved to 2026/12/18.", "Moved to 12.18.26.",
+                     "Moved to December eighteenth.", "Moved to the eighteenth of December.",
+                     "Moved to the 2nd of December."]:
+            self.body(f"<p>{text}</p>")
+            self.assertFails("printed date")
+
+    def test_fractions_and_units_are_fine(self):
+        self.body("<p>Bring a 5/8-wave antenna, a 1/4 wave whip and a 12/24 volt supply; a 1/2 inch mast; "
+                  "drills since 9/11.</p>")
+        self.assertPasses()
+
+    def test_external_files_link_with_a_version_does_not_exempt(self):
+        self.body('<p><a href="https://example.org/files/acs-task-book.docx">Task book</a> (Word document, August 9, 2024)</p>')
+        self.assertFails("printed date 'August 9'")
+
     def test_history_is_fine(self):
         self.body("<p>In August 2023, and in 1999, 2004, 2017 and 2019; 2nd and 4th Tuesdays; "
                   "Rev. 2019/2020; 24/7; IS-100; 147.300 MHz; 4 of 5 members.</p>")
