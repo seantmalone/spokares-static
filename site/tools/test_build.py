@@ -659,6 +659,17 @@ class RealSite(unittest.TestCase):
     def other(self, current, *choices):
         return next(c for c in choices if c != current)
 
+    def unused(self, value):
+        """value, or value with a number added, so that it is not already in
+        the data files (an added link or group must not repeat one)."""
+        text = (self.site / "data" / "facts.yaml").read_text(encoding="utf-8") + \
+            (self.site / "data" / "resources.yaml").read_text(encoding="utf-8")
+        n, cand = 1, value
+        while f'"{cand}"' in text:
+            n += 1
+            cand = f"{value}{n}" if not value.endswith("/") else f"{value}{n}/"
+        return cand
+
     def unit(self):
         return self.facts.get("leadership", "unit")
 
@@ -834,10 +845,11 @@ class RoutineEdits(RealSite):
 
     # -- Resources
     def test_add_a_resource_link(self):
+        url = self.unused("https://www.arrl.org/field-day")
         self.resources.add_entry("groups", 0, "links", fields=[
-            ("title", "ARRL Field Day"), ("url", "https://www.arrl.org/field-day"), ("opens", "ARRL"),
+            ("title", "ARRL Field Day"), ("url", url), ("opens", "ARRL"),
             ("note", "The yearly operating event in June.")])
-        self.passes("resources/index.html", values=["ARRL Field Day", "https://www.arrl.org/field-day"])
+        self.passes("resources/index.html", values=["ARRL Field Day", url])
 
     def test_change_a_resource_link(self):
         self.resources.set("groups", 0, "links", 0, "title", value="Courses from FEMA")
@@ -848,7 +860,8 @@ class RoutineEdits(RealSite):
         links = self.resources.get("groups", 0, "links")
         if len(links) == 1:
             self.resources.add_entry("groups", 0, "links", fields=[
-                ("title", "ARRL Field Day"), ("url", "https://www.arrl.org/field-day"), ("note", "Each June.")])
+                ("title", "ARRL Field Day"), ("url", self.unused("https://www.arrl.org/field-day")),
+                ("note", "Each June.")])
         gone = links[0]
         self.resources.remove_entry("groups", 0, "links", 0)
         texts = self.passes("resources/index.html")
@@ -857,8 +870,8 @@ class RoutineEdits(RealSite):
 
     def test_add_a_resource_group(self):
         self.resources.add_entry("groups", fields=[
-            ("id", "e2e-preparedness"), ("title", "Getting prepared"),
-            ("links", [[("title", "Ready.gov"), ("url", "https://www.ready.gov/"), ("opens", "FEMA"),
+            ("id", self.unused("e2e-preparedness")), ("title", "Getting prepared"),
+            ("links", [[("title", "Ready.gov"), ("url", self.unused("https://www.ready.gov/")), ("opens", "FEMA"),
                         ("note", "Make a plan and a kit for your household.")]])])
         self.passes("resources/index.html", values=["Getting prepared", "Ready.gov"])
 
