@@ -761,7 +761,7 @@ def main():
     for f in docs:
         rel = f.relative_to(root).as_posix()
         if f.parent != fdir:
-            problems.append(f"{rel} is a document that is not one of the files listed in facts.yaml; documents go "
+            problems.append(f"site/static/{rel} is a document that is not one of the files listed in facts.yaml; documents go "
                             "only in site/static/files/ under a listed name, so move or delete it")
         name = f.name
         if name.lower().endswith(".docx"):

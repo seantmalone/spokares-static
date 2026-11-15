@@ -522,11 +522,11 @@ class DocumentsAnywhere(Case):
 
     def test_document_in_a_subfolder_of_files(self):
         self.site.write_bytes("files/old/roster.docx", docx())
-        self.assertFails("files/old/roster.docx is a document that is not one of the files listed in facts.yaml")
+        self.assertFails("site/static/files/old/roster.docx is a document that is not one of the files listed in facts.yaml")
 
     def test_document_elsewhere(self):
         self.site.write_bytes("img/scan.pdf", b"%PDF-1.7\n%%EOF\n")
-        self.assertFails("img/scan.pdf is a document that is not one of the files listed")
+        self.assertFails("site/static/img/scan.pdf is a document that is not one of the files listed")
 
     def test_spreadsheet(self):
         self.site.write_bytes("roster.xlsx", b"PK")
