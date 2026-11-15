@@ -12,12 +12,12 @@
 
 ## Global Constraints
 
-- This plan is executed in the repository `/Users/sean/Projects/spokares-static`. All paths are relative to it unless they start with `../`.
+- This plan is executed in the repository `this repository`. All paths are relative to it unless they start with `../`.
 - **Leave the WordPress project alone.** `../spokane_ares` is read-only source material: never edit, commit, tag, push or deploy there, and never touch the Enhance website, its secrets or DNS. Part 2 is the only place that changes, and it is not part of the review build.
 - **Part 1 (Tasks 1 to 8, 9R, 12, 13) is the review build.** Part 2 (Tasks 9, 10, 11, 14, 15) is deferred until the owner chooses this direction; do not start it.
 - **The preview is served under a path prefix** (`/spokares-static/`). Never write a bare root-relative address (`/about/`, `/css/site.css`) in a template: wrap it as `{{ partial "url.html" "/about/" }}`. Markdown links in content may be written root-relative (`[About](/about/)`); the link render hook adds the prefix. In CSS, refer to fonts and images with relative paths (`../fonts/…`).
 - Steps that publish or change anything outside this folder are marked **OWNER GO-AHEAD**.
-- The repo is public. Never commit `research/raw/`, `research/wayback/snapshots/`, rosters, personal phone numbers, home addresses or personal e-mail addresses. Never read or print anything from `/Users/sean/Projects/spokane_ares-secrets/` into the repo or a log.
+- The repo is public. Never commit `research/raw/`, `research/wayback/snapshots/`, rosters, personal phone numbers, home addresses or personal e-mail addresses. Never read or print anything from `the secrets folder outside the repository` into the repo or a log.
 - Hugo is pinned to exactly `0.164.0`. Building the site must need nothing but that binary. No npm packages in the build.
 - The only hosted documents are the ARES application and the task books. Everything else is a link.
 - No link may require signing in. The one exception is a single link to `https://spokaneares-acs.groups.io/g/main`, on `/members/` only (not in the footer).
@@ -1671,7 +1671,7 @@ Expected: `200` on every line, then `1`. Open the preview in a browser at phone 
 
 - [ ] **Step 1: Create a plain website on Enhance**
 
-Use the `ss:enhance-api` skill. Create a new website under the owner's organisation with no application installed, on a preview or staging domain (not `spokares.org`). Record its preview address, SSH user and web root in `/Users/sean/Projects/spokane_ares-secrets/` and nowhere else. Add the existing deploy public key to its SSH access.
+Use the `ss:enhance-api` skill. Create a new website under the owner's organisation with no application installed, on a preview or staging domain (not `spokares.org`). Record its preview address, SSH user and web root in `the secrets folder outside the repository` and nowhere else. Add the existing deploy public key to its SSH access.
 
 - [ ] **Step 2: Upload the probe**
 
