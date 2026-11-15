@@ -223,14 +223,26 @@ belongs, or a broken link.
       window, and keep it if it opens without signing in.
 - [ ] Re-read each `note` in `site/data/resources.yaml` against the page it
       links to; the note must still describe what is there.
-- [ ] Check the facts that live in page text, not in `facts.yaml`: the
-      agreements (`site/content/about.md`), the ACS task-book table
-      (`site/layouts/shortcodes/about-training.html`), the timeline
-      (`site/layouts/shortcodes/about-timeline.html`), the legal basis table
-      (`site/layouts/shortcodes/about-legal-basis.html`), the readiness
-      levels (`site/layouts/shortcodes/how-readiness.html`) and the ARRL
-      levels (`site/layouts/shortcodes/about-arrl-levels.html`), which must
-      agree with the hosted ARRL task book.
+- [ ] Re-read the facts that live in page text, not in `facts.yaml`, and
+      correct any that changed:
+      - Home: the events in "What we do"
+        (`site/layouts/shortcodes/home-what-we-do.html`) and "What ACS
+        asks" (`site/layouts/shortcodes/home-join.html`), which must agree
+        with the ACS task book;
+      - How it works: the "Training and exercises" lines, including "Every
+        month" (`site/layouts/shortcodes/how-exercises.html`), and the
+        readiness levels (`site/layouts/shortcodes/how-readiness.html`);
+      - About: "Who we serve" and the agreements (`site/content/about.md`),
+        the organization chart (`site/layouts/shortcodes/about-chains.html`),
+        the ACS path steps (`site/layouts/shortcodes/about-acs-path.html`),
+        the ACS task-book table (`site/layouts/shortcodes/about-training.html`),
+        which must agree with the hosted ACS task book, the ARRL levels
+        (`site/layouts/shortcodes/about-arrl-levels.html`), which must agree
+        with the hosted ARRL task book, the legal basis table
+        (`site/layouts/shortcodes/about-legal-basis.html`) and the timeline
+        (`site/layouts/shortcodes/about-timeline.html`);
+      - For members: the events list and what to bring
+        (`site/content/members.md`).
 - [ ] The W7GBU club licence is current (look it up by call sign in the
       FCC's license search); its trustee renews it.
 - [ ] At least two people have write access to this repository.
