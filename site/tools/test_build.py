@@ -310,6 +310,30 @@ class Regressions(Build):
         self.assertNotIn('nowrap"><span class="nowrap', self.page(pub, "members/index.html"))
 
 
+class BuildScript(unittest.TestCase):
+    """R11: build.sh refuses arguments it does not understand, in one line."""
+
+    def run_sh(self, *args):
+        r = subprocess.run(["sh", str(TOOLS / "build.sh"), *args], capture_output=True, text=True, timeout=60)
+        return r.returncode, r.stdout + r.stderr
+
+    def test_live_without_an_address(self):
+        code, out = self.run_sh("--live")
+        self.assertEqual(code, 2)
+        self.assertIn("must be the site's address, starting with http", out)
+        self.assertEqual(len(out.strip().splitlines()), 1, out)
+
+    def test_unknown_second_argument(self):
+        code, out = self.run_sh("https://spokares.org/", "--lve")
+        self.assertEqual(code, 2)
+        self.assertIn("unknown argument --lve", out)
+
+    def test_too_many_arguments(self):
+        code, out = self.run_sh("https://spokares.org/", "--live", "extra")
+        self.assertEqual(code, 2)
+        self.assertIn("too many arguments", out)
+
+
 class PreviewSwitch(Build):
     """M8: params.preview decides noindex; the live build has none."""
 

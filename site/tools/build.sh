@@ -14,10 +14,20 @@
 set -eu
 cd "$(dirname "$0")/../.."
 
+usage="usage: site/tools/build.sh [http(s)://address/ [--live]]   (default http://localhost/spokares-static/)"
 base_url="${1:-http://localhost/spokares-static/}"
+case "$base_url" in
+  http://*|https://*) ;;
+  *) echo "build.sh: the first argument must be the site's address, starting with http:// or https://. $usage" >&2; exit 2 ;;
+esac
 mode="--preview"
 preview=true
-if [ "${2:-}" = "--live" ]; then mode="--live"; preview=false; fi
+case "${2:-}" in
+  "") ;;
+  --live) mode="--live"; preview=false ;;
+  *) echo "build.sh: unknown argument ${2}. $usage" >&2; exit 2 ;;
+esac
+if [ $# -gt 2 ]; then echo "build.sh: too many arguments. $usage" >&2; exit 2; fi
 case "$base_url" in */) ;; *) base_url="$base_url/" ;; esac
 base_path=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).path.rstrip("/"))' "$base_url")
 

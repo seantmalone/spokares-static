@@ -217,7 +217,7 @@ SCHEMA_FACTS = {
     },
     "winlink_nights": "nights",
     "meetings": [{"name": "text", "when": "text", "extra?": "text"}],
-    "place": {"name": "text", "street": "text", "city": "text", "state_zip": "text"},
+    "place": {"name": "text", "street": "text", "city": "text"},
     "leadership": {
         "unit": [{"role": "role", "callsign": "callsigns"}],
         "section": [{"role": "role", "callsign": "callsigns"}],

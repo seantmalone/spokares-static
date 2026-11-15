@@ -33,13 +33,12 @@ meetings:
   - name: "Training meeting"
     when: "Third Thursday of each month, 6:00 PM"
 
-# Where the meetings are. The site prints the name, street and city
-# ("…, 1121 W Gardner Ave, Spokane"); state_zip completes the postal address.
+# Where the meetings are, as the site prints it:
+# "…Spokane County Emergency Management, 1121 W Gardner Ave, Spokane".
 place:
   name: "Spokane County Emergency Management"
   street: "1121 W Gardner Ave"
   city: "Spokane"
-  state_zip: "WA 99260"
 
 # Leadership. Two lines per position (role and callsign). When a position is
 # empty, delete both its lines; do not write "open" or "vacant". "AEC" is
