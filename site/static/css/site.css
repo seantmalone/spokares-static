@@ -773,8 +773,10 @@ a.tag--open:hover { border-style: solid; }
 /* ============================================================ 23. Message-path figure (spokares-theme/message-path)
    The drawing is fixed in its one state; only the label size changes. */
 .msgpath { display: block; width: 100%; height: auto; aspect-ratio: 560 / 400; overflow: visible; color: var(--mist); --mp-fs: 17px; }
-.mp-label { font-family: var(--sans); font-weight: 600; fill: #fff; }
-.mp-sub { font-family: var(--sans); font-weight: 500; fill: var(--mist); }
+.mp-label { font-family: var(--sans); font-weight: 600; fill: #fff; font-size: var(--mp-fs, 17px); }
+.mp-sub { font-family: var(--sans); font-weight: 500; fill: var(--mist); font-size: calc(var(--mp-fs, 17px) * .8); }
+/* These sizes and the pill's scale were inline style attributes in the theme block. */
+.mp-pill { transform-box: fill-box; transform-origin: 100% 0; transform: scale(var(--mp-pill, 1)); }
 .mp-pilltext { font-family: var(--sans); font-weight: 600; font-size: 15px; fill: var(--amber); }
 .mp-num { font-family: var(--sans); font-weight: 700; font-size: 16px; fill: var(--night); }
 .msgpath-panel { margin: 0; background: rgba(5, 11, 26, .5); border: 1px solid rgba(197, 206, 223, .16); border-radius: var(--r-panel); padding: 14px 16px 16px; }

@@ -7,26 +7,7 @@
        reference's inner group carries more, e.g. inner="wrap how-ch__grid".
 
        Other shortcodes may sit inside, each on a line of its own (for example
-       {{< net-settings >}}). Their output is already HTML, and Markdown
-       rendering drops raw HTML (goldmark unsafe = false), so every run of lines
-       that starts with "<" is set aside, the Markdown around it is rendered,
-       and the HTML is put back in its place. */ -}}
-{{- $blocks := slice -}}
-{{- $md := slice -}}
-{{- $cur := "" -}}
-{{- range split (strings.TrimSpace .Inner) "\n" -}}
-  {{- if strings.HasPrefix (strings.TrimSpace .) "<" -}}
-    {{- if eq $cur "" -}}{{- $md = $md | append "" (printf "SPKBLOCK%dX" (len $blocks)) "" -}}{{- end -}}
-    {{- $cur = printf "%s%s\n" $cur . -}}
-  {{- else -}}
-    {{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- $cur = "" -}}{{- end -}}
-    {{- $md = $md | append . -}}
-  {{- end -}}
-{{- end -}}
-{{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- end -}}
-{{- $html := .Page.RenderString (dict "display" "block") (delimit $md "\n") -}}
-{{- range $i, $b := $blocks -}}
-  {{- $html = replace $html (printf "<p>SPKBLOCK%dX</p>" $i) $b -}}
-{{- end -}}
+       {{< net-settings >}}); see partials/markdown-blocks.html. */ -}}
+{{- $html := partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) -}}
 <section{{ with .Get "id" }} id="{{ . }}"{{ end }} class="{{ .Get "class" }}"><div class="{{ or (.Get "inner") "wrap" }}">{{ $html | safeHTML }}</div></section>
 {{- /* no trailing newline */ -}}

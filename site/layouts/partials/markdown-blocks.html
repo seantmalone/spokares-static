@@ -1,0 +1,23 @@
+{{- /* Renders Markdown that may hold other shortcodes' HTML, each on a line of its own.
+       Markdown rendering drops raw HTML (goldmark unsafe = false), so every run of
+       lines that starts with "<" is set aside, the Markdown around it is rendered,
+       and the HTML is put back in its place. Used by the section and how-row
+       shortcodes. Usage: partial "markdown-blocks.html" (dict "page" .Page "text" .Inner) */ -}}
+{{- $blocks := slice -}}
+{{- $md := slice -}}
+{{- $cur := "" -}}
+{{- range split (strings.TrimSpace .text) "\n" -}}
+  {{- if strings.HasPrefix (strings.TrimSpace .) "<" -}}
+    {{- if eq $cur "" -}}{{- $md = $md | append "" (printf "SPKBLOCK%dX" (len $blocks)) "" -}}{{- end -}}
+    {{- $cur = printf "%s%s\n" $cur . -}}
+  {{- else -}}
+    {{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- $cur = "" -}}{{- end -}}
+    {{- $md = $md | append . -}}
+  {{- end -}}
+{{- end -}}
+{{- if ne $cur "" -}}{{- $blocks = $blocks | append (strings.TrimSpace $cur) -}}{{- end -}}
+{{- $html := string (.page.RenderString (dict "display" "block") (delimit $md "\n")) -}}
+{{- range $i, $b := $blocks -}}
+  {{- $html = replace $html (printf "<p>SPKBLOCK%dX</p>" $i) $b -}}
+{{- end -}}
+{{- return $html -}}
