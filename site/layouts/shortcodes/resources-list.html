@@ -1,0 +1,20 @@
+{{- /* The Resources page's link groups, from data/resources.yaml, two by two on
+       wide screens. Each group is a ruled heading (the documents library's
+       style) over a list of lines: the link, then one line saying what it is.
+       A group without an id or title, or a link without a title, url or note,
+       stops the build. No arguments. */ -}}
+{{- $groups := hugo.Data.resources.groups -}}
+{{- if not $groups }}{{ errorf "resources.yaml: no groups" }}{{ end -}}
+<section class="resources-row"><div class="wrap ex-grid">
+{{- range $groups -}}
+  {{- if not (and .id .title .links) }}{{ errorf "resources.yaml: every group needs an id, a title and links (%v)" .id }}{{ end -}}
+  {{- $gid := .id -}}
+  <section class="resources-group"><div class="doc-group__head"><h2 id="{{ .id }}">{{ .title }}</h2></div><ul class="lines">
+  {{- range .links -}}
+    {{- if not (and .title .url .note) }}{{ errorf "resources.yaml: a link in %q needs a title, a url and a note (%v)" $gid .title }}{{ end -}}
+    <li>{{ partial "ext-link.html" (dict "url" .url "text" .title "opens" .opens "class" "doc-title") }}<span class="doc-note">{{ .note }}</span></li>
+  {{- end -}}
+  </ul></section>
+{{- end -}}
+</div></section>
+{{- /* no trailing newline */ -}}
