@@ -24,7 +24,8 @@ The site rebuilds and publishes itself within a few minutes.
   `freq: "147.300 MHz"`, not `freq: 147.300`.
 - Someone new in a position: change the call sign on that line.
 - A position is empty: delete its two lines (the `role` line and the
-  `callsign` line). Never write "open", "vacant" or "TBD".
+  `callsign` line). Never write "open", "vacant", "TBD", "unassigned",
+  "pending" or "position available"; the check refuses them.
 - Never put a date in this file. Meetings are written as rules, such as
   "Second Saturday of each month, 9:00 AM to noon". The one exception is a
   file's `version` (see below). The check refuses the common ways of writing
@@ -81,10 +82,11 @@ Protect Document › Remove personal information on save), then save and
 upload again.
 
 PDFs are not checked inside: the check can reliably read only a PDF's
-author fields, and prints a note saying so (the note does not stop the
-publish). Read a PDF through before you upload it, and make sure it holds
-no personal names, phone numbers or e-mail addresses. For the group's own
-forms, upload a Word file.
+author fields, and prints a note saying so. If a PDF names an author (a
+PDF from the ARRL may name a staff member), it prints a second note with
+that name. Notes do not stop the publish. Read a PDF through before you
+upload it, and make sure it holds no personal names, phone numbers or
+e-mail addresses. For the group's own forms, upload a Word file.
 
 These three files are the only documents the site holds. Everything else is
 a link to whoever keeps it current.
@@ -99,7 +101,10 @@ it they say the site's name from its address (such as "weather.gov").
 Copy an existing link's lines and change them. To add a group, copy a
 whole group (its `id`, `title` and `links`) and give it a new `id`.
 
-- Only link to pages anyone can open without signing in.
+- Only link to pages anyone can open without signing in. The check
+  refuses links to shared folders and files that need an account (Google
+  Drive and Docs, Dropbox, OneDrive, SharePoint, Facebook groups), here and
+  in page text.
 - Addresses start with `https://`. No groups.io or ag7qp.com links here.
 - Link to the organization that keeps the page current.
 - Do not copy someone else's dates, times or fees onto the site; link to

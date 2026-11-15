@@ -47,6 +47,15 @@ PAGES = {
     "resources/index.html": 7,
     "404.html": 1,
 }
+# Where each page's words come from, for the messages about page text.
+SOURCES = {
+    "index.html": "site/content/_index.md or site/data/facts.yaml",
+    "how-it-works/index.html": "site/content/how-it-works.md or site/data/facts.yaml",
+    "about/index.html": "site/content/about.md or site/data/facts.yaml",
+    "members/index.html": "site/content/members.md or site/data/facts.yaml",
+    "resources/index.html": "site/content/resources.md or site/data/resources.yaml",
+    "404.html": "site/layouts/404.html",
+}
 REMOVED_PATHS = ["members/exercises", "members/documents", "docs", "search"]
 SITE_DOMAIN = check_data.SITE_DOMAIN
 FILES_AUTHOR = "Spokane County ARES-ACS"
@@ -63,6 +72,8 @@ FORBIDDEN = {
     "later this season": STALE, "not posted yet": STALE, "coming soon": STALE,
     "posted soon": STALE, "available soon": STALE, "ready soon": STALE,
     "volunteer needed": EMPTY_ROLE, "open position": EMPTY_ROLE, "position open": EMPTY_ROLE,
+    "position is vacant": EMPTY_ROLE, "vacant position": EMPTY_ROLE, "position available": EMPTY_ROLE,
+    "vacancy": EMPTY_ROLE,
     "net control schedule": SCHEDULE,
 }
 FORBIDDEN_RE = [(re.compile(r"(?<![\w-])" + re.escape(k).replace(r"\ ", r"\s+") + r"(?![\w-])", re.I), k, why)
@@ -101,8 +112,9 @@ NOT_EMAIL_TLDS = {"png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico"}
 PDF_EMAIL = re.compile(rb"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*"
                        rb"\.(?:com|org|net|gov|edu|mil|us|io|info|biz|co)\b")
 
-MONTH = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?"
-         r"|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
+_MONTHS_BUT_MAY = (r"Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|June?|July?"
+                   r"|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?")
+MONTH = rf"(?:{_MONTHS_BUT_MAY}|May)"
 WEEKDAY = (r"(?:Mon(?:day)?|Tue(?:s(?:day)?)?|Wed(?:nesday)?|Thu(?:r(?:s(?:day)?)?)?|Fri(?:day)?"
            r"|Sat(?:urday)?|Sun(?:day)?)")
 ORD = r"\d{1,2}(?:st|nd|rd|th)"
@@ -117,9 +129,11 @@ ORDW = rf"(?:(?:twenty|thirty)[-\s](?:first|second|third|fourth|fifth|sixth|seve
 # eighteenth"), and numbers only with a year (11/14/2026, 12.18.26,
 # 2026-11-14). A bare 1/2 or 3-4 is a fraction, ratio or size, not a date.
 # Month + past year ("August 2023") and bare years are history, not dates.
-_MI = f"(?i:{MONTH})"
+# A month in any capitals, except that "may" in lower case is the verb.
+_MI = f"(?:(?i:{_MONTHS_BUT_MAY})|May|MAY)"
 DATE = re.compile(
-    rf"\b{WEEKDAY},?\s+{_MI}\.?\s+\d"
+    rf"\b{WEEKDAY},?\s+{_MI}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b"
+    rf"|\b{WEEKDAY},?\s+\d{{1,2}}/\d{{1,2}}\b"
     rf"|\b{_MI}\.?(?:\s+|-)\d{{1,2}}(?:st|nd|rd|th)?(?![\d:])"
     rf"|(?<![\d.-])\b\d{{1,2}}(?:st|nd|rd|th)?(?:\s+of\s+|\s+|-){_MI}\b"
     rf"|\b{WEEKDAY}\s+(?:the\s+)?{ORD}\b"
@@ -130,6 +144,10 @@ DATE = re.compile(
     r"|\b\d{4}([-/.])\d{1,2}\1\d{1,2}\b"
     r"|(?<![\w/.-])(?:0?[1-9]|[12]\d|3[01])([-/.])(?:0?[1-9]|[12]\d|3[01])\2(?:\d{4}|\d{2})(?![\d/.-]?\d)"
 )
+# A rule, not a date: an ordinal, a weekday (or weekend, week), "in" or "of",
+# and a month: "the 1st Sunday in May", "4th full weekend of June".
+RULE = re.compile(rf"\b(?:{ORD}|(?i:first|second|third|fourth|fifth|last))\s+(?:full\s+)?"
+                  rf"(?:{WEEKDAY}|weekend|week)s?\s+(?:in|of)\s+(?:the\s+month\s+of\s+)?{MONTH}\b")
 MONTH_YEAR = re.compile(rf"\b{MONTH}\.?,?\s+((?:19|20)\d\d)\b")
 # A date is allowed only as a hosted file's version, written exactly as in
 # facts.yaml, in the same block (list item, paragraph, table cell…) as a link
@@ -398,7 +416,9 @@ def docx_text(path, depth=0):
             continue
         out.append(html.unescape(" ".join(re.findall(r'\b(?:descr|title)="([^"]*)"', t))))
         t = re.sub(r"</w:p>|<w:br/>|<w:tab/>", "\n", t)
-        out.append(html.unescape(re.sub(r"<[^>]+>", "", t)))
+        # In the document a word may be split over several runs, so tags join
+        # with nothing; in the properties each field is its own value.
+        out.append(html.unescape(re.sub(r"<[^>]+>", " " if n.startswith("docProps/") else "", t)))
     return "\n".join(out), (meta if depth == 0 else {}), None
 
 
@@ -533,9 +553,12 @@ def main():
         p = u.path[len(base):] if base and u.path.startswith(base + "/") else u.path
         return p.startswith("/files/")
 
+    missing_pages = set()
     for rel, need in PAGES.items():
         if not (root / rel).is_file() and stage >= need:
-            problems.append(f"missing page: {rel}")
+            missing_pages.add(rel)
+            src = SOURCES.get(rel, "").split(" or ")[0]
+            problems.append(f"missing page: {rel} (from {src}); put that file back" if src else f"missing page: {rel}")
 
     for f in sorted(root.rglob("*.html")):
         rel = f.relative_to(root).as_posix()
@@ -587,6 +610,7 @@ def main():
                     or addr == "")
 
     def dates_in(chunk):
+        chunk = RULE.sub(lambda r: " " * len(r.group(0)), chunk)
         m = DATE.search(chunk)
         if m:
             return m
@@ -595,9 +619,16 @@ def main():
                 return m
         return None
 
-    groups_links = 0
+    def page_key(path):
+        """The built file a site address points at (about/index.html)."""
+        key = unquote(path).lstrip("/")
+        return key + "index.html" if key == "" or key.endswith("/") else key
+
+    group_links = 0
+    lost_sections = {}  # (linking page, page linked to, id) -> True, for one line each
     for rel, p in pages.items():
         raw = (root / rel).read_text(encoding="utf-8")
+        hint = f" (from {SOURCES[rel]})" if rel in SOURCES else ""
         text = norm(" ".join(p.text) + " | " + " | ".join(p.attr_text))
         if p.lang != "en-US":
             problems.append(f"{rel}: <html lang> is not en-US")
@@ -621,28 +652,28 @@ def main():
         for rx, phrase, why in FORBIDDEN_RE + LABELS:
             m = rx.search(text)
             if m:
-                problems.append(f'{rel}: "{context(text, m)}": "{m.group(0).strip(" |")}" {why}')
+                problems.append(f'{rel}: "{context(text, m)}": "{m.group(0).strip(" |")}" {why}{hint}')
         if "raw html omitted" in raw.lower():
             problems.append(f"{rel}: raw HTML was dropped from the page (\"raw HTML omitted\"); remove the HTML tags "
-                            "from the page text")
+                            f"from the page text{hint}")
         for token in FORBIDDEN_RAW:
             if token in raw.lower():
                 problems.append(f"{rel}: forbidden class or path {token!r} in the HTML")
         roles = norm(" ".join(p.roles_text))
         m = PLACEHOLDER.search(roles)
         if m:
-            problems.append(f'{rel}: the leadership table says "{m.group(0)}"; {EMPTY_ROLE}')
+            problems.append(f'{rel}: the leadership table says "{m.group(0)}"; {EMPTY_ROLE}{hint}')
         tels = [unquote(h[4:]) for h in p.links if h.lower().startswith("tel:")]
         for s in [norm(" ".join(p.text))] + p.attr_phone + tels:
             m = PHONE.search(s)
             if m:
-                problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}")
+                problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}{hint}")
                 break
         found = emails(html.unescape(raw)) | emails(" ".join(p.attr_all))
         for h in p.links:
             found |= emails(unquote(h))
         for e in sorted(found - allowed_emails):
-            problems.append(f"{rel}: e-mail address not allowed: {e}")
+            problems.append(f"{rel}: e-mail address not allowed: {e}{hint}")
         for block, chunk in p.block_text.items():
             chunk = norm(chunk)
             if re.fullmatch(r"\W*soon\W*", chunk, re.I):
@@ -654,51 +685,65 @@ def main():
             if m:
                 problems.append(f"{rel}: printed date {m.group(0)!r} in \"{context(chunk, m)}\"; write the rule, "
                                 "not the date: 'Third Thursday of each month' (a date may appear only as a hosted "
-                                "file's version)")
+                                f"file's version){hint}")
         m = dates_in(norm(" ".join(p.attr_text)))
         if m:
-            problems.append(f"{rel}: printed date {m.group(0)!r} in an attribute")
+            problems.append(f"{rel}: printed date {m.group(0)!r} in an attribute{hint}")
         for src in p.loads:
             u = urlparse(src)
             if u.scheme or u.netloc:
                 if u.scheme != "data":
-                    problems.append(f"{rel}: third-party load {src}")
+                    problems.append(f"{rel}: third-party load {src}{hint}")
             elif relative(src):
-                problems.append(f"{rel}: relative address {src} (write it root-relative)")
+                problems.append(f"{rel}: relative address {src} (write it root-relative){hint}")
             elif not (root / unquote(local(u.path, rel, "asset")).lstrip("/")).is_file():
-                problems.append(f"{rel}: missing asset {src}")
+                problems.append(f"{rel}: missing asset {src}{hint}")
         for href in p.links:
             u = urlparse(href.strip())
             scheme = u.scheme.lower()
             if scheme in ("mailto", "tel"):
                 continue
             if scheme not in ("", "http", "https"):
-                problems.append(f"{rel}: {scheme}: link not allowed: {href}")
+                problems.append(f"{rel}: {scheme}: link not allowed: {href}{hint}")
                 continue
             if scheme or u.netloc:
                 host = (u.hostname or "").lower()
                 if host == "groups.io" or host.endswith(".groups.io"):
-                    groups_links += 1
-                    # The one link allowed: the members' group named in facts.yaml (groupsio).
+                    # The one link allowed: the members' group named in facts.yaml (groupsio), on /members/.
                     g = urlparse(groups_io)
                     same = (scheme == "https" and host == (g.hostname or "").lower()
                             and u.path.rstrip("/") == g.path.rstrip("/")
                             and not u.query and not u.fragment)
-                    if rel != "members/index.html" or not same:
-                        problems.append(f"{rel}: groups.io link not allowed here: {href}")
-                    if "/files" in u.path:
-                        problems.append(f"{rel}: link needs sign-in: {href}")
+                    if rel == "members/index.html" and same:
+                        group_links += 1
+                    else:
+                        problems.append(f"{rel}: {check_data.SIGN_IN} (only For members links to the members' "
+                                        f"group on groups.io): {href}{hint}")
+                elif check_data.needs_sign_in(href):
+                    problems.append(f"{rel}: {check_data.SIGN_IN}: {href}{hint}")
                 if (host == "ag7qp.com" or host.endswith(".ag7qp.com")) and rel != "resources/index.html":
-                    problems.append(f"{rel}: ag7qp.com link outside Resources: {href}")
+                    problems.append(f"{rel}: ag7qp.com link outside Resources: {href}{hint}")
                 continue
             if relative(href):
-                problems.append(f"{rel}: relative link {href} (write it root-relative, e.g. /about/)")
+                problems.append(f"{rel}: relative link {href} (write it root-relative, e.g. /about/){hint}")
                 continue
             path = local(u.path, rel, "link") if u.path else "/" + rel.replace("index.html", "")
-            if not target_ok(path, u.fragment):
-                problems.append(f"{rel}: broken internal link {href}")
-    if stage >= 6 and groups_links != 1:
-        problems.append(f"expected exactly one groups.io link (on /members/), found {groups_links}")
+            if target_ok(path, u.fragment):
+                continue
+            key = page_key(path)
+            if key in missing_pages:
+                continue  # said once, as "missing page"
+            if u.fragment and target_ok(path, ""):
+                if (rel, key, u.fragment) not in lost_sections:
+                    lost_sections[(rel, key, u.fragment)] = True
+                    where = SOURCES.get(key, f"site/content/{key.replace('/index.html', '')}.md")
+                    problems.append(f"{rel}: links to the section #{u.fragment} on {key.replace('index.html', '') or '/'}, "
+                                    f"which is not there; put that id back (in {where}) or change the link")
+                continue
+            problems.append(f"{rel}: broken internal link {href}{hint}")
+    if stage >= 6 and "members/index.html" in pages and group_links != 1:
+        problems.append(f"members/index.html: expected one link to the members' group (groupsio in facts.yaml), "
+                        f"found {group_links}")
 
     # Hosted files: exactly the ones listed in facts.yaml, and no other
     # document anywhere in the build; nothing personal in any of them.
@@ -749,9 +794,10 @@ def main():
             m = PHONE.search(norm(text))
             if m:
                 problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}")
+            # A PDF from outside (ARRL) may name its staff; the editor cannot change that, so it is a note.
             for a in sorted(pdf_authors(parts)):
-                problems.append(f"{rel}: the PDF's author is {a!r}; it must be empty or {FILES_AUTHOR!r} "
-                                "(remove it in the program that made the PDF, or in Acrobat: File › Properties)")
+                notes.append(f'note: {rel} names "{a}" as its author; if that is a private person, export the PDF '
+                             "again without it")
 
     for f in sorted(root.rglob("*.css")):
         rel = f.relative_to(root).as_posix()

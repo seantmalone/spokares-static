@@ -629,17 +629,23 @@ class DocumentPeople(Case):
     def test_pdf_author(self):
         self.site.write_bytes("files/arrl-ares-task-book.pdf",
                               b"%PDF-1.7\n1 0 obj<</Author(Jane Member)/Producer(x)>>endobj\n%%EOF\n")
-        self.assertFails("files/arrl-ares-task-book.pdf: the PDF's author is 'Jane Member'")
+        self.assertAuthorNote("Jane Member")
+
+    def assertAuthorNote(self, name):
+        # F4: a PDF's author is a note, not a refusal (ARRL's PDFs may name their staff).
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f'note: files/arrl-ares-task-book.pdf names "{name}" as its author', out)
 
     def test_pdf_xmp_creator(self):
         self.site.write_bytes("files/arrl-ares-task-book.pdf",
                               b"%PDF-1.7\n<x:xmpmeta><dc:creator><rdf:Seq><rdf:li>Jane Member</rdf:li></rdf:Seq></dc:creator></x:xmpmeta>\n%%EOF\n")
-        self.assertFails("the PDF's author is 'Jane Member'")
+        self.assertAuthorNote("Jane Member")
 
     def test_pdf_hex_author(self):
         self.site.write_bytes("files/arrl-ares-task-book.pdf",
                               b"%PDF-1.7\n1 0 obj<</Author<FEFF004A0061006E0065>>>endobj\n%%EOF\n")
-        self.assertFails("the PDF's author is 'Jane'")
+        self.assertAuthorNote("Jane")
 
     def test_pdf_program_names_are_fine(self):
         # The program that made a PDF is not a person, in any of the forms PDFs use.
@@ -697,18 +703,24 @@ class PdfFiles(Case):
         self.assertEqual(code, 0, out)
         self.assertIn(NOTE, out)
 
-    def test_real_looking_pdf_with_an_author_is_refused(self):
+    def noted(self, name):
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f'note: files/arrl-ares-task-book.pdf names "{name}" as its author; if that is a private '
+                      "person, export the PDF again without it", out)
+
+    def test_real_looking_pdf_with_an_author_is_noted(self):
         # The Info dictionary points at its Author string (an indirect reference), as Word and Acrobat write it.
         self.put(pdf(b"<</Title(Task book)/Author 2 0 R/Creator(Microsoft Word)>>", b"(Jane Member)",
                      b"<</Type/Catalog>>", trailer=b"/Root 3 0 R/Info 1 0 R"))
-        self.assertFails("files/arrl-ares-task-book.pdf: the PDF's author is 'Jane Member'")
+        self.noted("Jane Member")
 
     def test_xmp_author_in_attribute_form(self):
         for xmp in (b'<rdf:Description pdf:Author="Jane Member"/>', b"<rdf:Description dc:creator='Jane Member'/>",
                     b"<pdf:Author>Jane Member</pdf:Author>"):
             with self.subTest(xmp=xmp):
                 self.put(pdf(b"<</Type/Catalog>>", stream=b"<x:xmpmeta>" + xmp + b"</x:xmpmeta>"))
-                self.assertFails("the PDF's author is 'Jane Member'")
+                self.noted("Jane Member")
 
     def test_phone_in_page_text(self):
         for compress in (False, True):
@@ -982,6 +994,114 @@ class Email(Case):
         self.assertFails("contact.email must be an address at spokares.org")
 
 
+class Round4(Case):
+    """F2-F6, G1, G10: vacancy wording, rules that are not dates, PDF authors,
+    sign-in links, where a page's words come from, and plainer messages."""
+
+    def fails_with(self, html, needle, rel="index.html"):
+        self.body(html, rel=rel)
+        return self.assertFails(needle)
+
+    # F2
+    def test_vacancy_wording_in_page_text(self):
+        for text, hit in [("Our training coordinator position is vacant; volunteers welcome.", "position is vacant"),
+                          ("We have a vacant position for a net manager.", "vacant position"),
+                          ("Net manager: position available.", "position available"),
+                          ("One vacancy remains on the team.", "vacancy")]:
+            with self.subTest(text=text):
+                out = self.fails_with(f"<p>{text}</p>", f'"{hit}" leave an empty position out')
+
+    def test_ordinary_words_near_vacancy_wording_pass(self):
+        self.body("<p>Open House each June; the Opening net; none of the above; available on the net; "
+                  "a position report.</p>")
+        self.assertPasses()
+
+    # F3
+    def test_rules_with_an_ordinal_weekday_and_month_pass(self):
+        for text in ["Bloomsday (the 1st Sunday in May)", "the 3rd Saturday in May", "the 4th full weekend of June",
+                     "Third Saturday in May", "the 2nd Tuesday of December", "you may 2-way the station",
+                     "the club may 3 times a year"]:
+            with self.subTest(text=text):
+                self.body(f"<p>{text}.</p>")
+                self.assertPasses()
+
+    def test_weekday_with_a_numeric_date(self):
+        for text, hit in [("Thursday 12/17, 6:00 PM", "Thursday 12/17"), ("Mon 11/9 at noon", "Mon 11/9"),
+                          ("Thursday, 12/17", "Thursday, 12/17")]:
+            with self.subTest(text=text):
+                self.fails_with(f"<p>{text}</p>", f"printed date '{hit}'")
+
+    def test_the_message_quotes_the_whole_date(self):
+        for text, hit in [("Thursday, Dec. 17, 6:00 PM", "Thursday, Dec. 17"), ("Bloomsday is May 3.", "May 3"),
+                          ("MAY 3 at the EOC", "MAY 3")]:
+            with self.subTest(text=text):
+                self.fails_with(f"<p>{text}</p>", f"printed date '{hit}'")
+
+    # F4
+    def test_pdf_author_is_a_notice_not_a_refusal(self):
+        self.site.write_bytes("files/arrl-ares-task-book.pdf",
+                              pdf(b"<</Title(Task book)/Author 2 0 R>>", b"(ARRL Staff Member)", b"<</Type/Catalog>>",
+                                  trailer=b"/Root 3 0 R/Info 1 0 R"))
+        code, out = self.site.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn('note: files/arrl-ares-task-book.pdf names "ARRL Staff Member" as its author; if that is a '
+                      "private person, export the PDF again without it", out)
+        self.assertIn(NOTE, out)
+
+    # F5
+    def test_links_that_need_a_sign_in(self):
+        for href in ["https://drive.google.com/drive/folders/1AbC", "https://docs.google.com/spreadsheets/d/1AbC/edit",
+                     "https://www.dropbox.com/s/abc/roster.xlsx", "https://dropbox.com/s/abc", "https://1drv.ms/x/s!abc",
+                     "https://onedrive.live.com/?id=abc", "https://contoso.sharepoint.com/sites/ares",
+                     "https://www.facebook.com/groups/spokaneares", "https://spokaneares-acs.groups.io/g/main/files"]:
+            with self.subTest(href=href):
+                self.fails_with(f'<p><a href="{href}">x</a></p>', "this link needs a sign-in; link to a public page instead",
+                                rel="about/index.html")
+
+    def test_public_pages_on_those_sites_pass(self):
+        self.body('<h2 id="contact">Contact</h2><p><a href="https://www.facebook.com/SpokaneCountyDEM">County DEM</a> '
+                  '<a href="https://www.google.com/maps">Maps</a></p>', rel="about/index.html")
+        self.assertPasses()
+
+    def test_groups_io_on_another_page_is_one_line(self):
+        out = self.fails_with('<h2 id="contact">Contact</h2><p><a href="https://spokaneares-acs.groups.io/g/main">'
+                              "group</a></p>", "this link needs a sign-in", rel="about/index.html")
+        self.assertIn("1 problem(s)", out)
+
+    # F6
+    def test_page_text_problems_name_the_source_files(self):
+        out = self.fails_with("<p>Open position</p>", "(from site/content/_index.md or site/data/facts.yaml)")
+        out = self.fails_with('<h2 id="forms">Forms</h2><p>Call 509-555-0142.</p>',
+                              "(from site/content/resources.md or site/data/resources.yaml)", rel="resources/index.html")
+
+    # G1
+    def test_a_section_id_other_pages_link_to(self):
+        self.body('<h2 id="contact">Contact</h2><p><a href="/resources/#licensing">a</a> '
+                  '<a href="/resources/#licensing">b</a></p>', rel="about/index.html")
+        out = self.assertFails("about/index.html: links to the section #licensing on resources/, which is not there; "
+                               "put that id back (in site/content/resources.md or site/data/resources.yaml) "
+                               "or change the link")
+        self.assertIn("1 problem(s)", out)
+
+    def test_a_deleted_page_is_one_line(self):
+        for rel in ("index.html", "about/index.html", "members/index.html"):
+            self.site.write(rel, self.site.root.joinpath(rel).read_text(encoding="utf-8").replace(
+                "</body>", '<p><a href="/resources/">Resources</a> <a href="/resources/#forms">Forms</a></p></body>'))
+        (self.site.root / "resources" / "index.html").unlink()
+        code, out = self.site.run()
+        problems = [l for l in out.splitlines() if not l.startswith("note:")]
+        self.assertTrue(problems[0].startswith("missing page: resources/index.html"), out)
+        self.assertNotIn("broken internal link", out)
+        self.assertIn("1 problem(s)", out)
+
+    # G10
+    def test_address_in_the_word_properties_is_read_cleanly(self):
+        self.site.write_bytes("files/ares-application.docx",
+                              docx(core="<dc:title>Application</dc:title><dc:description>info@spokares.org"
+                                        "</dc:description>"))
+        self.assertPasses()
+
+
 class Stages(Case):
     """m12: the full checks (default stage 7) run in the tests."""
 
@@ -991,24 +1111,25 @@ class Stages(Case):
 
     def test_no_groups_io_link(self):
         self.body("<p>No group link.</p>" + MEMBERS.split("<p>")[0], rel="members/index.html", title="For members")
-        self.assertFails("expected exactly one groups.io link")
+        self.assertFails("members/index.html: expected one link to the members' group (groupsio in facts.yaml), found 0")
 
     def test_two_groups_io_links(self):
         self.body(MEMBERS + '<p><a href="https://spokaneares-acs.groups.io/g/main">again</a></p>',
                   rel="members/index.html")
-        self.assertFails("expected exactly one groups.io link (on /members/), found 2")
+        self.assertFails("expected one link to the members' group (groupsio in facts.yaml), found 2")
 
     def test_group_address_comes_from_facts(self):
         self.site.facts.write_text(FACTS.replace("spokaneares-acs.groups.io/g/main", "spokane-ares.groups.io/g/members"),
                                    encoding="utf-8")
-        self.assertFails("members/index.html: groups.io link not allowed here: https://spokaneares-acs.groups.io/g/main")
+        self.assertFails("members/index.html: this link needs a sign-in; link to a public page instead (only For members "
+                         "links to the members' group on groups.io): https://spokaneares-acs.groups.io/g/main")
         self.body(MEMBERS.replace("spokaneares-acs.groups.io/g/main", "spokane-ares.groups.io/g/members"),
                   rel="members/index.html", title="For members")
         self.assertPasses()
 
     def test_groups_io_on_another_page(self):
         self.body('<p><a href="https://spokaneares-acs.groups.io/g/main">group</a></p>')
-        self.assertFails("index.html: groups.io link not allowed here")
+        self.assertFails("index.html: this link needs a sign-in")
 
 
 class Modes(Case):
