@@ -17,6 +17,7 @@ fault; the test output follows.
 Standard library only. Exits 0 when every self-test passes, 1 otherwise.
 """
 import shutil
+import os
 import subprocess
 import sys
 import tempfile
@@ -51,9 +52,14 @@ def run(tests=TESTS, site=SITE):
     with tempfile.TemporaryDirectory() as tmp:
         copy = prepare(tmp, site)
 
+        # The tests must behave the same on a laptop and on GitHub: the checkers
+        # print "::notice::" / "::warning::" prefixes when GITHUB_ACTIONS is set,
+        # so it is removed here. A test that wants that mode sets it itself.
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
+
         def one(name):
             r = subprocess.run([sys.executable, str(copy / "tools" / name), "-q"], cwd=tmp,
-                               capture_output=True, text=True)
+                               capture_output=True, text=True, env=env)
             return name, r.returncode, r.stdout + r.stderr
 
         with ThreadPoolExecutor(len(tests)) as ex:
