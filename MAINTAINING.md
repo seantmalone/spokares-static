@@ -18,7 +18,7 @@ need to install anything.
 2. Change the words between the quotes. Leave the labels on the left alone.
 3. Choose "Commit changes".
 
-The site rebuilds and publishes itself in about two minutes.
+The site rebuilds and publishes itself within a few minutes.
 
 - Every value goes between straight double quotes, even a number:
   `freq: "147.300 MHz"`, not `freq: 147.300`.
@@ -33,8 +33,11 @@ The site rebuilds and publishes itself in about two minutes.
 - The net day, time and repeater call sign are used on every page that
   mentions them, so change them only in `facts.yaml`.
 - The contact address (`contact.email`) is also printed inside the ARES
-  application. If it changes, upload a corrected application in the same
-  change (see the next section), or the check refuses it.
+  application, and the check refuses the two if they disagree. To change
+  it, use a side branch as in the next section: upload the corrected
+  application (the new address in its text and in any e-mail link) to the
+  branch, then change `contact.email` on the same branch, then merge. The check on the first of those two commits fails
+  (the form and `facts.yaml` disagree); that is expected.
 
 ## Replace the application or a task book
 
@@ -55,13 +58,15 @@ both changes on a side branch and publish them at once:
    branch menu), open `site/data/facts.yaml`, choose Edit, and under
    `files` change that file's `version` (written like "November 7, 2024"
    or "July 2024"). If the ending changed, also change its `file` to the
-   new name and its `kind` to "PDF" or "Word document", and delete the
-   old file in `site/static/files/` on the same branch. Commit to the
-   branch.
-4. The pull request shows a check. If the ending changed, the check on the
-   first commit fails because `facts.yaml` did not list the new name yet;
-   that is expected and harmless. When the latest check is green, choose
-   "Merge pull request". The file and its version are published together.
+   new name and its `kind` to "PDF" or "Word document". Commit to the
+   branch. If the ending changed, also open the old file in
+   `site/static/files/`, delete it (the "…" menu, "Delete file") and commit
+   that to the branch too.
+4. The pull request shows a check for each commit. If the ending changed,
+   the checks fail until the upload, the `facts.yaml` change and the
+   deletion are all on the branch; that is expected and harmless. When the
+   latest check is green, choose "Merge pull request". The file and its
+   version are published together.
 
 A document anywhere in the site that is not one of the files listed in
 `facts.yaml`, or a listed file that is missing, stops the publish.
@@ -76,9 +81,10 @@ Protect Document › Remove personal information on save), then save and
 upload again.
 
 PDFs are not checked inside: the check can reliably read only a PDF's
-author fields, and prints a note saying so. Read a PDF through before you upload it, and
-make sure it holds no personal names, phone numbers or e-mail addresses.
-For the group's own forms, upload a Word file.
+author fields, and prints a note saying so (the note does not stop the
+publish). Read a PDF through before you upload it, and make sure it holds
+no personal names, phone numbers or e-mail addresses. For the group's own
+forms, upload a Word file.
 
 These three files are the only documents the site holds. Everything else is
 a link to whoever keeps it current.
@@ -90,7 +96,8 @@ and a `note`: one line saying what it is. `opens` is optional: the short
 name of whoever runs the linked site (for example "FEMA"). It is not shown
 on the page; screen readers say "(opens FEMA)" after the link, and without
 it they say the site's name from its address (such as "weather.gov").
-Copy an existing link's lines and change them.
+Copy an existing link's lines and change them. To add a group, copy a
+whole group (its `id`, `title` and `links`) and give it a new `id`.
 
 - Only link to pages anyone can open without signing in.
 - Addresses start with `https://`. No groups.io or ag7qp.com links here.
@@ -115,9 +122,9 @@ as they are. These things trip people up in `site/content/`:
   `[About](/about/)`, not `about/`.
 - Do not type HTML tags (such as `<b>` or `<br>`); the check refuses them
   and names the line. Plain text such as "< 5 minutes" is fine.
-- A line such as `{.lede}`, `{.m-line}` or `{.lines}` gives the paragraph
-  or list just above it its look. Keep it directly under that paragraph or
-  list, with no empty line between them.
+- A line such as `{.lede}`, `{.lines}`, `{.seq}` or `{.m-line}` gives the
+  paragraph or list just above it its look. It must directly follow that
+  paragraph or list, with no empty line between them.
 
 ### Where the words are
 
@@ -159,8 +166,8 @@ as they are. These things trip people up in `site/content/`:
 ## If a change does not appear
 
 Open the "Actions" tab on GitHub. A red mark means the checks refused the
-change, and the first lines of the failed step say why, naming the file
-and the line (for example
+change. Each failed check prints one plain line saying what to fix, naming
+the file and the line (for example
 `site/data/facts.yaml line 7: time: a quote mark is missing; …`).
 The published site is untouched until a change passes. The usual causes
 are a deleted quote mark in `facts.yaml`, a value typed without quotes, a
@@ -219,6 +226,15 @@ belongs, or a broken link.
   `site/tools/test_check_links.py` and `site/tools/test_build.py`. The
   output is in `site/public`. Preview it locally with
   `hugo server --source site`.
+- The self-tests never read the live data: they use the frozen copies of
+  the data files, page files and hosted files in `site/tools/fixtures/`, so
+  a yearly edit cannot make them fail. After changing a template, update
+  those copies if a test needs it. `test_build.py` also copies the real
+  site, makes each routine edit (new call signs, net, repeaters, meetings,
+  contact address, hosted files, Resources links) and runs `build.sh` on
+  the copy; those runs skip the self-test step (`BUILD_SKIP_SELF_TESTS=1`),
+  and one of them runs the whole `build.sh`. The whole gate takes about a
+  minute and a half.
 - Preview or live: `params.preview` in `site/hugo.toml` is `true`, which
   marks every page `noindex`. For the real spokares.org build, turn it off
   with the environment: `site/tools/build.sh https://spokares.org/ --live`
