@@ -6,6 +6,13 @@ enableRobotsTXT = false
 disableHugoGeneratorInject = true
 uglyURLs = false
 
+# preview = true marks every page "noindex" (keep search engines away from a
+# review copy). Build the real spokares.org site with preview off, for
+# example: HUGO_PARAMS_PREVIEW=false hugo --source site --baseURL https://spokares.org/
+# and check it with: python3 site/tools/check_site.py site/public --live
+[params]
+  preview = true
+
 [markup.goldmark.renderer]
   unsafe = false
 
