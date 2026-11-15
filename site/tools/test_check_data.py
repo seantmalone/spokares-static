@@ -3,11 +3,14 @@
 
 Run: python3 site/tools/test_check_data.py
 
-Each test copies the real site/data/facts.yaml and resources.yaml into a
-temporary folder, makes one edit a volunteer might make by mistake, and runs
-check_data.py on it as a subprocess, the way the build does. It must fail
-with one plain line naming the file and line, and never a Python traceback.
+Each test copies the frozen fixture copies of facts.yaml and resources.yaml
+(site/tools/fixtures/data/, never the live site/data/ files, so a yearly edit
+cannot break a test) into a temporary folder, makes one edit a volunteer might
+make, and runs check_data.py on it as a subprocess, the way the build does. A
+mistake must fail with one plain line naming the file and line, and never a
+Python traceback. A failing test names the value, never prints the file.
 """
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,7 +19,7 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
 CHECKER = TOOLS / "check_data.py"
-DATA = TOOLS.parent / "data"
+DATA = TOOLS / "fixtures" / "data"
 
 
 class Case(unittest.TestCase):
@@ -32,7 +35,8 @@ class Case(unittest.TestCase):
     def edit(self, name, old, new):
         f = self.dir / name
         text = f.read_text(encoding="utf-8")
-        self.assertIn(old, text, f"test setup: {old!r} not in {name}")
+        if old not in text:
+            self.fail(f"test setup: {old!r} is not in the fixture {name}")
         f.write_text(text.replace(old, new, 1), encoding="utf-8")
 
     def run_checker(self):
@@ -63,15 +67,24 @@ class Case(unittest.TestCase):
 F, R = "facts.yaml", "resources.yaml"
 
 
-class RealFiles(Case):
-    def test_real_files_pass(self):
+class FixtureFiles(Case):
+    def test_fixture_files_pass(self):
         code, out = self.run_checker()
         self.assertEqual(code, 0, out)
         self.assertIn("look right", out)
 
     def test_default_folder_is_site_data(self):
-        r = subprocess.run([sys.executable, str(CHECKER)], capture_output=True, text=True)
+        # A copy of the checker in <tmp>/site/tools reads <tmp>/site/data.
+        tools, data = self.dir / "site" / "tools", self.dir / "site" / "data"
+        tools.mkdir(parents=True)
+        shutil.copy(CHECKER, tools / CHECKER.name)
+        shutil.copytree(DATA, data)
+        r = subprocess.run([sys.executable, str(tools / CHECKER.name)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        (data / "facts.yaml").write_text('net:\n  day: "Tuesday\n', encoding="utf-8")
+        r = subprocess.run([sys.executable, str(tools / CHECKER.name)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("site/data/facts.yaml line 2", r.stdout)
 
     def test_bad_arguments(self):
         r = subprocess.run([sys.executable, str(CHECKER), "--nope"], capture_output=True, text=True)
@@ -398,9 +411,6 @@ class EditorExperience(Case):
     def test_role_line_deleted(self):
         self.fails(F, '    - role: "AEC, Hospital Coordinator"\n', "",
                    "this position has a call sign but no role")
-
-    def test_comment_says_two_lines(self):
-        self.assertIn("Two lines per position", (DATA / F).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

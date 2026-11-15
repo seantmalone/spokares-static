@@ -44,6 +44,12 @@ else
   python3 site/tools/check_site.py site/public "$mode"
 fi
 
+if [ "${BUILD_SKIP_SELF_TESTS:-}" = 1 ]; then
+  # Only for test_build.py's edit tests, which run this script on a copy of the site.
+  echo "== Steps 1 to 3 passed; self-tests skipped (BUILD_SKIP_SELF_TESTS=1)."
+  exit 0
+fi
+
 echo "== 4. Self-tests of the checkers and templates"
 python3 site/tools/test_check_data.py -q
 python3 site/tools/test_check_site.py -q

@@ -1,0 +1,124 @@
+# Links on the Resources page (/resources/), in groups.
+#
+# Each link needs a title, an address (url) and one plain line (note) saying
+# what it is. "opens" is optional: the short name of whoever runs the site
+# the link goes to. It is not shown on the page; screen readers read it out
+# after the link, as "(opens FEMA)". Without it they read the web address.
+# Every value goes in straight double quotes. Addresses must start https://.
+#
+# Rules: link to the organization that keeps the page current. Only link to
+# pages anyone can open without signing in. Never copy someone else's dates,
+# schedules or fees here; link to them. No groups.io links, no net scripts.
+# Do not rename or remove a group's id: other pages link to it.
+groups:
+  - id: "training"
+    title: "Training"
+    links:
+      - title: "FEMA Independent Study courses"
+        url: "https://training.fema.gov/programs/independent-study/"
+        opens: "FEMA"
+        note: "Free online courses, including IS-100, IS-200, IS-700 and IS-800."
+      - title: "FEMA Student ID (SID)"
+        url: "https://cdp.dhs.gov/femasid"
+        opens: "FEMA"
+        note: "Get your free student ID before you take a course exam."
+      - title: "AUXCOMM and communications unit training"
+        url: "https://www.cisa.gov/safecom/comu-training-resources"
+        opens: "CISA"
+        note: "Federal material on AUXCOMM, the qualification ACS is modeled on."
+      - title: "ARRL emergency communications training"
+        url: "https://www.arrl.org/emergency-communications-training"
+        opens: "ARRL"
+        note: "The ARRL’s online courses, including Basic and Intermediate EmComm."
+      - title: "A guide to Anderson Powerpoles"
+        url: "https://www.arrl.org/files/file/Public%20Service/TrainingModules/Technical/Anderson%20powerpole.pdf"
+        opens: "ARRL"
+        note: "How to make your own DC power connections (PDF)."
+
+  - id: "forms"
+    title: "Forms and field guides"
+    links:
+      - title: "FEMA ICS forms"
+        url: "https://training.fema.gov/emiweb/is/icsresource/icsforms/"
+        opens: "FEMA"
+        note: "The general message (ICS-213), resource request (ICS-213RR) and activity log (ICS-214)."
+      - title: "ARRL Radiogram"
+        url: "https://www.arrl.org/files/media/Group/Fillable%20Radiogram%20Form.pdf"
+        opens: "ARRL"
+        note: "The National Traffic System message form, fillable (PDF)."
+      - title: "Washington State resource request form (ICS-213RR)"
+        url: "https://mil.wa.gov/asset/5ba420f505d91"
+        opens: "WA Military Dept."
+        note: "The state’s version of the resource request, used in state exercises (PDF)."
+      - title: "Winlink Express"
+        url: "https://winlink.org/WinlinkExpress"
+        opens: "Winlink"
+        note: "The free radio email program. Washington State forms, such as the Field Situation Report, are built in."
+      - title: "AUXFOG and NIFOG field operations guides"
+        url: "https://www.cisa.gov/safecom/field-operations-guides"
+        opens: "CISA"
+        note: "Pocket guides to emergency radio channels and procedures."
+
+  - id: "weather"
+    title: "Weather"
+    links:
+      - title: "SKYWARN spotter training"
+        url: "https://www.weather.gov/otx/Current_Spotter_Training"
+        opens: "NWS Spokane"
+        note: "Weather spotter classes from the National Weather Service in Spokane."
+      - title: "National Weather Service Spokane"
+        url: "https://www.weather.gov/otx/"
+        opens: "NWS Spokane"
+        note: "Forecasts and warnings for the Inland Northwest."
+
+  - id: "county"
+    title: "Spokane County"
+    links:
+      - title: "Spokane County Emergency Management"
+        url: "https://www.spokanecounty.gov/5498/Emergency-Management"
+        opens: "Spokane County"
+        note: "The county office we serve: evacuation maps, getting prepared and news."
+      - title: "Spokane County ACS"
+        url: "https://www.spokanecounty.gov/1813/ACS-Auxiliary-Communication-Systems"
+        opens: "Spokane County"
+        note: "The county’s own page about its volunteer radio unit."
+      - title: "ALERT Spokane"
+        url: "https://www.spokanecounty.gov/3007/Alert-Spokane"
+        opens: "Spokane County"
+        note: "Sign up for the county’s emergency alerts."
+      - title: "Spokane County volunteer application"
+        url: "https://www.spokanecounty.gov/FormCenter/Emergency-Management-31/Volunteer-Emergency-Worker-Application-276"
+        opens: "Spokane County"
+        note: "The county form for ACS volunteers (choose Auxiliary Communication Services)."
+
+  - id: "licensing"
+    title: "Getting licensed"
+    links:
+      - title: "HamStudy"
+        url: "https://hamstudy.org/"
+        opens: "hamstudy.org"
+        note: "Free practice for the license exams, with the real question pools."
+      - title: "ARRL exam session search"
+        url: "https://www.arrl.org/find-an-amateur-radio-license-exam-session"
+        opens: "ARRL"
+        note: "Find an exam session near you, in person or online."
+      - title: "FCC Registration Number (FRN)"
+        url: "https://www.fcc.gov/wireless/support/universal-licensing-system-uls-resources/getting-fcc-registration-number-frn"
+        opens: "FCC"
+        note: "How to get the number the FCC asks for before your exam."
+
+  - id: "section"
+    title: "ARRL and the Section"
+    links:
+      - title: "ARRL Eastern Washington Section"
+        url: "https://www.arrl.org/Groups/view/eastern-washington"
+        opens: "ARRL"
+        note: "The Section’s officials."
+      - title: "ARRL Amateur Radio Emergency Service"
+        url: "https://www.arrl.org/ares"
+        opens: "ARRL"
+        note: "What ARES is and how it is organized nationally."
+      - title: "ARRL Simulated Emergency Test"
+        url: "https://www.arrl.org/simulated-emergency-test"
+        opens: "ARRL"
+        note: "The ARRL’s national exercise, each fall."
