@@ -228,7 +228,8 @@ class RealSite(unittest.TestCase):
         tail = "\n".join(out.splitlines()[-25:])
         self.assertNotEqual(code, 0, f"the gate let a mistake through:\n{tail}")
         hits = [l for l in out.splitlines() if needle in l]
-        self.assertEqual(len(hits), 1, f"expected one line saying {needle!r}:\n{tail}")
+        # A Hugo error is printed first and again in Hugo's own output (build.sh); it is one message.
+        self.assertEqual(len(set(hits)), 1, f"expected one line saying {needle!r}:\n{tail}")
         self.assertLess(len(hits[0]), 400, hits[0])
         return hits[0]
 
