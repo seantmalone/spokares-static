@@ -7,8 +7,14 @@
 Standard library only. Exits 1 and prints one line per problem.
 Stages let early tasks run the checks that apply so far:
   1 shell   2 facts   3 home   4 how   5 about   6 members   7 resources (all)
+The stage only decides which of the named PAGES must exist and whether their
+anchors are checked yet. Every other check runs on every *.html file (and
+every *.css file) under <public-dir>.
+
+Self-test: python3 site/tools/test_check_site.py
 """
 import csv
+import html
 import re
 import sys
 from html.parser import HTMLParser
@@ -24,64 +30,164 @@ PAGES = {
     "404.html": 1,
 }
 REMOVED_PATHS = ["members/exercises", "members/documents", "docs", "search"]
+# Removed wording, matched case-insensitively against the page's text with all
+# whitespace (line breaks, no-break spaces) folded to one space and tags removed.
 FORBIDDEN = [
     "Schedule as of", "Last reviewed", "being recovered", "new website",
     "This week", "Next up", "Later this season", "Not posted yet",
-    "Volunteer needed", "Open position", "Net Control Schedule",
-    "needs-verify", "data-verify", "wp-block-navigation", "wp-content",
-    "wp-includes",
+    "Volunteer needed", "Open position", "Net Control Schedule", "coming soon",
 ]
-FORBIDDEN_WORDS = [r"\bSoon\b", r"\bNext: "]
+# Class and path tokens, matched in the raw HTML.
+FORBIDDEN_RAW = ["needs-verify", "data-verify", "wp-block-navigation", "wp-content",
+                 "wp-includes"]
+# Patterns matched against the same normalised text. "Soon" as a label is
+# capitalised; "as soon as" in a sentence is fine.
+FORBIDDEN_WORDS = [r"\bSoon\b", r"(?i)\bnext:\s"]
 FACTCHECK = ["147.300", "100 Hz", "8:00 PM", "Second Saturday", "Third Thursday",
              "1121 W Gardner Ave", "W7TSC", "info@spokares.org"]
 GROUPS_IO = "https://spokaneares-acs.groups.io/g/main"
-PHONE = re.compile(r"\(?\b\d{3}\)?[-. ]\d{3}[-. ]\d{4}\b")
-EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+
+DASH = "\\-\u2010‑‒–—−"
+SEP = f"[{DASH}.\\s]"
+# (509) 555-1234, 509-555-1234, 509.555.1234, 509 555 1234, 509–555–1234,
+# +1 509 555 1234, 5095551234, and 555-1234. Frequencies (147.300), offsets,
+# times, years, ZIPs and form numbers do not have these shapes.
+PHONE = re.compile(
+    rf"(?<![\d.])(?:\+?1{SEP}?)?(?:\(\d{{3}}\)\s?|\d{{3}}{SEP})\d{{3}}{SEP}\d{{4}}(?![\d])"
+    rf"|(?<![\d.])1?\d{{10}}(?!\d)"
+    rf"|(?<![\d.{DASH}])\d{{3}}[{DASH}]\d{{4}}(?![\d{DASH}])"
+)
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 ALLOWED_EMAILS = {"info@spokares.org"}
+NOT_EMAIL_TLDS = {"png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico"}
+
+MONTH = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?"
+         r"|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
+WEEKDAY = r"(?:Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun)(?:day)?"
+# Printed dates: "Sat, Oct 10", "November 7", "27 June", 2026-11-14, 11/14/2026.
+# Month + year ("August 2023") and bare years are history, not dates.
+DATE = re.compile(
+    rf"\b{WEEKDAY},?\s+{MONTH}\.?\s+\d"
+    rf"|\b{MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?![\d:])"
+    rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{MONTH}\b"
+    r"|\b\d{4}-\d{2}-\d{2}\b"
+    r"|\b\d{1,2}/\d{1,2}/(?:\d{4}|\d{2})\b"
+)
+# A date is allowed only as a hosted file's version: in the same block (list
+# item, paragraph, table cell…) as a link to /files/….
+DATE_BLOCKS = {"li", "p", "td", "th", "dd", "dt", "figcaption", "caption",
+               "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "div", "section",
+               "main", "body"}
+VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+        "source", "track", "wbr"}
+TEXT_ATTRS = ("alt", "title", "aria-label", "placeholder", "data-copy-text")
+CSS_URL = re.compile(r"""url\(\s*(['"]?)(.*?)\1\s*\)|@import\s+(['"])(.*?)\3""", re.S)
+
+
+def norm(s):
+    return re.sub(r"\s+", " ", s)
 
 
 class Page(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.ids, self.links, self.loads, self.text = set(), [], [], []
+        self.attr_text = []   # attribute values people read or copy
+        self.attr_all = []    # every attribute value (for the e-mail check)
+        self.attr_phone = []  # attributes that could carry a phone number (not SVG geometry)
+        self.styles = 0
         self.h1 = 0
         self.title = ""
         self.lang = None
+        self.description = None
+        self.robots = []
         self._in_title = False
         self._skip = 0
+        self._stack = []          # open elements: [tag, block_id]
+        self._block = 0           # id of the innermost open date block
+        self.blocks_with_files = set()
+        self.block_text = {}      # block_id -> its own text, for the date check
+
+    def _blocks(self):
+        return [b for _, b in self._stack if b is not None]
 
     def handle_starttag(self, tag, attrs):
-        a = dict(attrs)
+        a = {k: (v or "") for k, v in attrs}
         if a.get("id"):
             self.ids.add(a["id"])
+        if "style" in a:
+            self.styles += 1
+        for k, v in a.items():
+            self.attr_all.append(v)
+            if k in TEXT_ATTRS:
+                self.attr_text.append(v)
+            if k in TEXT_ATTRS + ("href", "content", "value"):
+                self.attr_phone.append(v)
         if tag == "html":
             self.lang = a.get("lang")
         if tag == "h1":
             self.h1 += 1
         if tag == "title":
             self._in_title = True
+        if tag == "meta":
+            name = a.get("name", "").lower()
+            if name == "description":
+                self.description = a.get("content", "")
+                self.attr_text.append(self.description)
+            if name == "robots":
+                self.robots.append(a.get("content", "").lower())
+        if tag == "style":
+            self.styles += 1
         if tag in ("script", "style"):
             self._skip += 1
-        if tag == "a" and a.get("href"):
+        if tag in ("a", "area") and "href" in a:
             self.links.append(a["href"])
-        if tag in ("script", "img", "source", "iframe") and a.get("src"):
+            if "/files/" in a["href"]:
+                self.blocks_with_files.update(self._blocks())
+        if a.get("src") and tag in ("script", "img", "source", "iframe", "video",
+                                    "audio", "track", "embed", "input"):
             self.loads.append(a["src"])
-        if tag == "link" and a.get("href") and a.get("rel") in (
-            "stylesheet", "preload", "icon", "modulepreload"
-        ):
+        if a.get("poster") and tag == "video":
+            self.loads.append(a["poster"])
+        if a.get("data") and tag == "object":
+            self.loads.append(a["data"])
+        if "srcset" in a or "imagesrcset" in a:
+            for part in (a.get("srcset", "") + "," + a.get("imagesrcset", "")).split(","):
+                url = part.strip().split(" ")[0] if part.strip() else ""
+                if url:
+                    self.loads.append(url)
+        if tag == "link" and a.get("href"):
             self.loads.append(a["href"])
+        if tag in VOID:
+            return
+        self._block += 1
+        self._stack.append([tag, self._block if tag in DATE_BLOCKS else None])
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in VOID and self._stack:
+            self._stack.pop()
 
     def handle_endtag(self, tag):
         if tag == "title":
             self._in_title = False
         if tag in ("script", "style"):
             self._skip -= 1
+        if tag in VOID:
+            return
+        for i in range(len(self._stack) - 1, -1, -1):
+            if self._stack[i][0] == tag:
+                del self._stack[i:]
+                break
 
     def handle_data(self, data):
         if self._in_title:
             self.title += data
         elif not self._skip:
             self.text.append(data)
+            blocks = self._blocks()
+            b = blocks[-1] if blocks else 0
+            self.block_text[b] = self.block_text.get(b, "") + data
 
 
 def main():
@@ -105,18 +211,21 @@ def main():
         return path
 
     for rel, need in PAGES.items():
-        f = root / rel
-        if not f.is_file():
-            if stage >= need:
-                problems.append(f"missing page: {rel}")
-            continue
+        if not (root / rel).is_file() and stage >= need:
+            problems.append(f"missing page: {rel}")
+
+    for f in sorted(root.rglob("*.html")):
+        rel = f.relative_to(root).as_posix()
         p = Page()
         p.feed(f.read_text(encoding="utf-8"))
+        p.close()
         pages[rel] = p
 
     for rel in REMOVED_PATHS:
         if (root / rel).exists():
             problems.append(f"removed path is present: {rel}")
+    for f in root.glob("sitemap*.xml"):
+        problems.append(f"sitemap must not ship: {f.name}")
 
     def target_ok(path, frag):
         path = unquote(path)
@@ -127,58 +236,125 @@ def main():
             return False
         if not frag:
             return True
-        key = str(f.relative_to(root))
+        key = f.relative_to(root).as_posix()
         if key not in pages:
             return f.suffix != ".html"
         if stage < PAGES.get(key, 0):
             return True  # that page's sections arrive in a later task
         return frag in pages[key].ids
 
+    def emails(s):
+        out = set()
+        for e in EMAIL.findall(s):
+            e = e.rstrip(".")
+            if e.rsplit(".", 1)[-1].lower() in NOT_EMAIL_TLDS:
+                continue
+            out.add(e.lower())
+        return out
+
+    def relative(addr):
+        """An internal address that a browser resolves against the page's own URL."""
+        u = urlparse(addr)
+        return not (u.scheme or u.netloc or addr.startswith("/") or addr.startswith("#")
+                    or addr == "")
+
     groups_links = 0
     for rel, p in pages.items():
         raw = (root / rel).read_text(encoding="utf-8")
-        text = " ".join(p.text)
+        text = norm(" ".join(p.text) + " | " + " | ".join(p.attr_text))
         if p.lang != "en-US":
             problems.append(f"{rel}: <html lang> is not en-US")
         if p.h1 != 1:
             problems.append(f"{rel}: expected one h1, found {p.h1}")
         if not p.title.strip():
             problems.append(f"{rel}: empty <title>")
+        if not (p.description or "").strip():
+            problems.append(f"{rel}: empty or missing meta description")
+        if not any("noindex" in r for r in p.robots):
+            problems.append(f'{rel}: missing <meta name="robots" content="noindex">')
+        if p.styles:
+            problems.append(f"{rel}: inline style (style= or <style>) found {p.styles} time(s)")
         for phrase in FORBIDDEN:
-            if phrase.lower() in raw.lower():
+            if phrase.lower() in text.lower():
                 problems.append(f"{rel}: forbidden text {phrase!r}")
+        for token in FORBIDDEN_RAW:
+            if token in raw.lower():
+                problems.append(f"{rel}: forbidden text {token!r}")
         for pat in FORBIDDEN_WORDS:
             if re.search(pat, text):
                 problems.append(f"{rel}: forbidden wording /{pat}/")
-        if PHONE.search(text):
-            problems.append(f"{rel}: something that looks like a phone number")
-        for e in set(EMAIL.findall(raw)) - ALLOWED_EMAILS:
+        tels = [unquote(h[4:]) for h in p.links if h.lower().startswith("tel:")]
+        for s in [norm(" ".join(p.text))] + p.attr_phone + tels:
+            m = PHONE.search(s)
+            if m:
+                problems.append(f"{rel}: something that looks like a phone number: {m.group(0)!r}")
+                break
+        found = emails(html.unescape(raw)) | emails(" ".join(p.attr_all))
+        for h in p.links:
+            found |= emails(unquote(h))
+        for e in sorted(found - ALLOWED_EMAILS):
             problems.append(f"{rel}: e-mail address not allowed: {e}")
+        for block, chunk in p.block_text.items():
+            m = DATE.search(norm(chunk))
+            if m and block not in p.blocks_with_files:
+                problems.append(f"{rel}: printed date {m.group(0)!r} (meetings are rules only)")
+        m = DATE.search(norm(" ".join(p.attr_text)))
+        if m:
+            problems.append(f"{rel}: printed date {m.group(0)!r} in an attribute")
         for src in p.loads:
             u = urlparse(src)
             if u.scheme or u.netloc:
-                problems.append(f"{rel}: third-party load {src}")
-            elif not (root / local(u.path, rel, "asset").lstrip("/")).is_file():
+                if u.scheme != "data":
+                    problems.append(f"{rel}: third-party load {src}")
+            elif relative(src):
+                problems.append(f"{rel}: relative address {src} (write it root-relative)")
+            elif not (root / unquote(local(u.path, rel, "asset")).lstrip("/")).is_file():
                 problems.append(f"{rel}: missing asset {src}")
         for href in p.links:
-            u = urlparse(href)
-            if u.scheme in ("mailto", "tel"):
+            u = urlparse(href.strip())
+            scheme = u.scheme.lower()
+            if scheme in ("mailto", "tel"):
                 continue
-            if u.scheme or u.netloc:
-                if "groups.io" in u.netloc:
+            if scheme not in ("", "http", "https"):
+                problems.append(f"{rel}: {scheme}: link not allowed: {href}")
+                continue
+            if scheme or u.netloc:
+                host = (u.hostname or "").lower()
+                if host == "groups.io" or host.endswith(".groups.io"):
                     groups_links += 1
-                    if rel != "members/index.html" or href != GROUPS_IO:
+                    same = (scheme == "https" and host == urlparse(GROUPS_IO).hostname
+                            and u.path.rstrip("/") == urlparse(GROUPS_IO).path
+                            and not u.query and not u.fragment)
+                    if rel != "members/index.html" or not same:
                         problems.append(f"{rel}: groups.io link not allowed here: {href}")
-                if "ag7qp.com" in u.netloc and rel != "resources/index.html":
+                    if "/files" in u.path:
+                        problems.append(f"{rel}: link needs sign-in: {href}")
+                if (host == "ag7qp.com" or host.endswith(".ag7qp.com")) and rel != "resources/index.html":
                     problems.append(f"{rel}: ag7qp.com link outside Resources: {href}")
-                if "/files" in u.path and "groups.io" in u.netloc:
-                    problems.append(f"{rel}: link needs sign-in: {href}")
+                continue
+            if relative(href):
+                problems.append(f"{rel}: relative link {href} (write it root-relative, e.g. /about/)")
                 continue
             path = local(u.path, rel, "link") if u.path else "/" + rel.replace("index.html", "")
             if not target_ok(path, u.fragment):
                 problems.append(f"{rel}: broken internal link {href}")
     if stage >= 6 and groups_links != 1:
         problems.append(f"expected exactly one groups.io link, found {groups_links}")
+
+    for f in sorted(root.rglob("*.css")):
+        rel = f.relative_to(root).as_posix()
+        css = re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8"), flags=re.S)
+        for m in CSS_URL.finditer(css):
+            addr = (m.group(2) if m.group(2) is not None else m.group(4)).strip()
+            u = urlparse(addr)
+            if u.scheme == "data" or addr.startswith("#") or not addr:
+                continue
+            if u.scheme or u.netloc:
+                problems.append(f"{rel}: third-party load {addr}")
+            elif addr.startswith("/"):
+                problems.append(f"{rel}: root-relative address {addr} breaks under a base path; use ../")
+            elif not (f.parent / unquote(u.path)).resolve().is_file():
+                problems.append(f"{rel}: missing asset {addr}")
 
     repoint = Path(__file__).parent / "redirects" / "repoint.csv"
     if stage >= 7 and repoint.is_file():
