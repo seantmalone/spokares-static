@@ -818,8 +818,10 @@ class Email(Case):
     def test_changed_address_still_in_the_form(self):
         self.site.write_bytes("files/ares-application.docx", docx("Send it to info@spokares.org"))
         self.site.facts.write_text(FACTS.replace("info@spokares.org", "contact@spokares.org"), encoding="utf-8")
-        self.assertFails("files/ares-application.docx: the file still gives info@spokares.org, but facts.yaml now says "
-                         "contact@spokares.org; upload a corrected file in the same change")
+        out = self.assertFails("files/ares-application.docx: the file gives info@spokares.org, facts.yaml (contact.email) "
+                               "gives contact@spokares.org; make them match")
+        self.assertNotIn("still", out)
+        self.assertNotIn("now says", out)
 
     def test_facts_address_off_domain(self):
         self.site.facts.write_text(FACTS.replace("info@spokares.org", "bob@gmail.com"), encoding="utf-8")

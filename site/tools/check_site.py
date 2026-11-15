@@ -645,8 +645,8 @@ def main():
             for e in sorted(emails(text) - allowed_emails):
                 if e.endswith("@" + SITE_DOMAIN):
                     now = ", ".join(sorted(allowed_emails)) or "the contact address"
-                    problems.append(f"{rel}: the file still gives {e}, but facts.yaml now says {now}; "
-                                    "upload a corrected file in the same change")
+                    problems.append(f"{rel}: the file gives {e}, facts.yaml (contact.email) gives {now}; "
+                                    "make them match")
                 else:
                     problems.append(f"{rel}: e-mail address not allowed: {e}")
             m = PHONE.search(norm(text))

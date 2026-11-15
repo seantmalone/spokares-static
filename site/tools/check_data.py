@@ -47,14 +47,21 @@ UNITS = {"freq": "MHz", "tone": "Hz", "offset": "kHz"}
 LINE = re.compile(rf"^(?P<key>{KEY}):(?:[ ]+(?P<rest>.*))?$")
 
 
+CURLY = "“”„‘’"
+
+
+def curly(key, q):
+    return f"{key}: this line uses a curly quote {q} — retype it as a straight quote (\"), like {key}: \"...\""
+
+
 def _value(where, n, key, rest):
     """Reads the text after "key:". Returns the string, or None for "nothing here"
     (more labels follow, indented). Raises DataError for anything else."""
     rest = rest.rstrip()
     if rest == "" or rest.startswith("#"):
         return None
-    if rest[0] in "“”„‘’":
-        raise DataError(where, n, f"{key}: uses curly quote marks; type straight ones (\") instead, like {key}: \"...\"")
+    if rest[0] in CURLY:
+        raise DataError(where, n, curly(key, rest[0]))
     if rest[0] != '"':
         shown = rest if len(rest) <= 40 else rest[:40] + "…"
         bare = shown.strip("'\"").strip()
@@ -81,6 +88,9 @@ def _value(where, n, key, rest):
             return "".join(out)
         out.append(c)
         i += 1
+    bent = next((c for c in rest if c in CURLY), None)
+    if bent:
+        raise DataError(where, n, curly(key, bent))
     raise DataError(where, n, f"{key}: a quote mark is missing; every value goes between two straight quote marks, "
                               f"like {key}: \"...\"")
 
@@ -196,12 +206,16 @@ def strip(v):
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
           "September", "October", "November", "December"]
-CALL = r"(?:[A-Z]{1,2}|[A-Z]\d|\d[A-Z])\d[A-Z]{1,4}(?:/[A-Z0-9]{1,4})?"
+# A call sign, with an optional portable prefix ("KL7/K7MHG") or suffix ("NV2Z/AE").
+CALL = r"(?:[A-Z0-9]{1,4}/)?(?:[A-Z]{1,2}|[A-Z]\d|\d[A-Z])\d[A-Z]{1,4}(?:/[A-Z0-9]{1,4})?"
 # Words that mark an empty position: a whole phrase anywhere, or a value that
 # is nothing but one of the short words ("Open", "None").
 PLACEHOLDER = re.compile(r"\b(?:vacant|tbd|tba|t\.b\.d|to be (?:filled|named|announced|determined)|unfilled|"
                          r"position open|open position|volunteer needed)\b|\((?:open|none|vacant)\)", re.I)
 PLACEHOLDER_ONLY = re.compile(r"\W*(?:open|none|nobody|n/?a|-+)\W*", re.I)
+# ...or a role or call sign that ends in one: "AEC, Hospital: open", "(N/A)",
+# "seeking volunteer", "(position currently open)".
+PLACEHOLDER_END = re.compile(r"(?:\b(?:open|n/a|vacant|tbd|to be filled)|\bseeking\b.*)\W*$", re.I)
 MARKUP = re.compile(r"[<>*_`\[\]{}\\]")
 FILE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.(docx|pdf)$")
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -230,6 +244,10 @@ SCHEMA_RESOURCES = {
     "groups": [{"id": "id", "title": "text",
                 "links": [{"title": "text", "url": "url", "opens?": "text", "note": "text"}]}],
 }
+
+
+def placeholder(v):
+    return bool(PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v) or PLACEHOLDER_END.search(v))
 
 
 class Checker:
@@ -324,8 +342,12 @@ class Checker:
             return "is not an offset like \"+600 kHz\" or \"-600 kHz\" (a plus or minus sign first)"
 
     def k_tone(self, v):
-        if not re.fullmatch(r"\d{2,3}(?:\.\d)? Hz|DCS \d{3}|no tone", v):
-            return "is not a tone like \"100 Hz\" (with a space before Hz), a code like \"DCS 023\", or \"no tone\""
+        if re.fullmatch(r"\d{2,3}(?:\.\d)? Hz|DCS \d{3}", v) or v.lower() == "no tone":
+            return None
+        m = re.fullmatch(r"DCS\s*(\d{1,3})", v, re.I)
+        if m:
+            return f"is a DCS code; write three digits: \"DCS {int(m.group(1)):03d}\""
+        return "is not a tone like \"100 Hz\" (with a space before Hz), a code like \"DCS 023\", or \"no tone\""
 
     def k_call(self, v):
         if not re.fullmatch(CALL, v):
@@ -341,12 +363,12 @@ class Checker:
                     "the site adds the net day itself")
 
     def k_role(self, v):
-        if PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v):
+        if placeholder(v):
             return ("marks an empty position; when a position is empty, delete its two lines "
                     "(role and callsign) instead")
 
     def k_callsigns(self, v):
-        if PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v):
+        if placeholder(v):
             return ("marks an empty position; when a position is empty, delete its two lines "
                     "(role and callsign) instead")
         for c in v.split(","):

@@ -191,6 +191,11 @@ class TemplateGuards(Build):
         self.assertIn('data-copy-text="Alternate repeater 146.880 MHz, -600 kHz offset, no tone"', how)
         self.assertNotIn("tone tone", how)
 
+    def test_no_tone_in_capitals_reads_in_lower_case(self):
+        self.edit("data/facts.yaml", 'tone: "123 Hz"', 'tone: "No Tone"')
+        how = html.unescape(self.page(self.built(), "how-it-works/index.html")).replace("\u00a0", " ")
+        self.assertIn("146.880 MHz, −600 kHz, no tone<", how)
+
     def test_file_title_is_text_not_markdown(self):
         self.edit("data/facts.yaml", 'title: "ACS Position Task Book"', 'title: "ACS Position Task Book *new* & more"')
         about = self.page(self.built(), "about/index.html")
@@ -622,6 +627,10 @@ class RoutineEdits(RealSite):
     def test_slash_suffix_call_sign(self):
         self.facts.set("leadership", "unit", 0, "callsign", value="K7ZQA/AE")
         self.passes("about/index.html", values=["K7ZQA/AE"])
+
+    def test_prefix_style_portable_call_sign(self):
+        self.facts.set("leadership", "unit", 0, "callsign", value="KL7/K7ZQA")
+        self.passes("about/index.html", values=["KL7/K7ZQA"])
 
     def test_remove_a_unit_position(self):
         unit = self.unit()

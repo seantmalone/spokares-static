@@ -408,6 +408,39 @@ class EditorExperience(Case):
     def test_unquoted_tone_hint_has_the_unit(self):
         self.fails(F, 'tone: "100 Hz"', "tone: 100", 'like tone: "100 Hz"')
 
+    def test_placeholders_that_used_to_publish(self):
+        # T6: "...: open", "(N/A)", "seeking ..." and "(position currently open)" mark an empty position.
+        for old, new in [('"AEC, Hospital Coordinator"', '"AEC, Hospital Coordinator: open"'),
+                         ('callsign: "K7MHG"', 'callsign: "(N/A)"'),
+                         ('callsign: "K7MHG"', 'callsign: "seeking volunteer"'),
+                         ('"AEC, Hospital Coordinator"', '"AEC, Hospital Coordinator (position currently open)"'),
+                         ('callsign: "K7MHG"', 'callsign: "n/a"')]:
+            with self.subTest(new=new):
+                self.tearDown()
+                self.setUp()
+                self.fails(F, old, new, "empty position")
+
+    def test_no_tone_any_capitalisation(self):
+        for v in ("No tone", "NO TONE", "no tone"):
+            with self.subTest(v=v):
+                self.tearDown()
+                self.setUp()
+                self.passes(F, 'tone: "123 Hz"', f'tone: "{v}"')
+
+    def test_dcs_with_two_digits(self):
+        self.fails(F, 'tone: "123 Hz"', 'tone: "DCS 23"', 'write three digits: "DCS 023"')
+
+    def test_prefix_style_portable_call(self):
+        self.passes(F, 'callsign: "K7MHG"', 'callsign: "KL7/K7MHG"')
+
+    def test_curly_closing_quote_is_named(self):
+        self.fails(F, 'time: "8:00 PM"', 'time: "8:00 PM”', "this line uses a curly quote ”",
+                   "retype it as a straight quote")
+
+    def test_curly_opening_quote_is_named(self):
+        self.fails(F, 'time: "8:00 PM"', 'time: “8:00 PM"', "this line uses a curly quote “",
+                   "retype it as a straight quote")
+
     def test_role_line_deleted(self):
         self.fails(F, '    - role: "AEC, Hospital Coordinator"\n', "",
                    "this position has a call sign but no role")

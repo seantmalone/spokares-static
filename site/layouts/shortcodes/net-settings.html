@@ -9,7 +9,9 @@
 {{- $afreq := partial "fact.html" "repeater.alternate.freq" -}}
 {{- $aoff := partial "fact.html" "repeater.alternate.offset" -}}
 {{- $atone := partial "fact.html" "repeater.alternate.tone" -}}
-{{- /* A tone in Hz reads "100 Hz tone"; "DCS 023" and "no tone" read as they are. */ -}}
+{{- /* A tone in Hz reads "100 Hz tone"; "DCS 023" reads as it is; "No tone" in any capitals reads "no tone". */ -}}
+{{- if eq (lower $ptone) "no tone" }}{{ $ptone = "no tone" }}{{ end -}}
+{{- if eq (lower $atone) "no tone" }}{{ $atone = "no tone" }}{{ end -}}
 {{- if strings.HasSuffix $ptone "Hz" }}{{ $ptone = printf "%s tone" $ptone }}{{ end -}}
 {{- if strings.HasSuffix $atone "Hz" }}{{ $atone = printf "%s tone" $atone }}{{ end -}}
 {{- $pcopy := printf "%s %s, %s offset, %s" $pcall $pfreq $poff $ptone -}}
