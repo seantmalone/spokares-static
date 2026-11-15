@@ -683,7 +683,12 @@ class Leadership(Case):
 
     def test_open(self):
         self.body(self.table("(open)"), rel="about/index.html")
-        self.assertFails('the leadership table says "open"')
+        self.assertFails('the leadership table says "(open)"')
+
+    def test_open_house_is_fine(self):
+        self.body(self.table("AA7RT").replace("AEC, Hospital", "AEC, Public Events and Open House")
+                  + '<h2 id="contact">Contact</h2>', rel="about/index.html")
+        self.assertPasses()
 
     def test_call_signs_pass(self):
         self.body(self.table("AA7RT, W7UWC") + '<h2 id="contact">Contact</h2>', rel="about/index.html")

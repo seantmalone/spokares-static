@@ -137,6 +137,15 @@ class TemplateGuards(Build):
         self.edit("data/resources.yaml", 'note: "Forecasts and warnings for the Inland Northwest."', "note: 12")
         self.refused("resources.yaml", "note", "double quotes")
 
+    def test_tone_values_read_naturally(self):
+        self.edit("data/facts.yaml", 'tone: "123 Hz"', 'tone: "no tone"')
+        self.edit("data/facts.yaml", 'tone: "100 Hz"', 'tone: "DCS 023"')
+        how = html.unescape(self.page(self.built(), "how-it-works/index.html")).replace("\u00a0", " ")
+        self.assertIn("146.880 MHz, −600 kHz, no tone<", how)
+        self.assertIn("147.300 MHz, +600 kHz, DCS 023<", how)
+        self.assertIn('data-copy-text="Alternate repeater 146.880 MHz, -600 kHz offset, no tone"', how)
+        self.assertNotIn("tone tone", how)
+
     def test_file_title_is_text_not_markdown(self):
         self.edit("data/facts.yaml", 'title: "ACS Position Task Book"', 'title: "ACS Position Task Book *new* & more"')
         about = self.page(self.built(), "about/index.html")

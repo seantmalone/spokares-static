@@ -41,9 +41,9 @@ place:
   city: "Spokane"
   state_zip: "WA 99260"
 
-# Leadership. One line per position. Remove a line when a position is empty;
-# do not write "open" or "vacant". "AEC" is Assistant Emergency Coordinator
-# (the site spells it out the first time).
+# Leadership. Two lines per position (role and callsign). When a position is
+# empty, delete both its lines; do not write "open" or "vacant". "AEC" is
+# Assistant Emergency Coordinator (the site spells it out the first time).
 leadership:
   unit:
     - role: "Emergency Coordinator"

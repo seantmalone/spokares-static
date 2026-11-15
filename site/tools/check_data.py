@@ -42,6 +42,8 @@ class DataError(Exception):
 # ------------------------------------------------------------------ reading
 
 KEY = r"[A-Za-z0-9_-]+"
+# The unit a bare number was probably meant to have, for the hint.
+UNITS = {"freq": "MHz", "tone": "Hz", "offset": "kHz"}
 LINE = re.compile(rf"^(?P<key>{KEY}):(?:[ ]+(?P<rest>.*))?$")
 
 
@@ -55,7 +57,12 @@ def _value(where, n, key, rest):
         raise DataError(where, n, f"{key}: uses curly quote marks; type straight ones (\") instead, like {key}: \"...\"")
     if rest[0] != '"':
         shown = rest if len(rest) <= 40 else rest[:40] + "…"
-        raise DataError(where, n, f"{key}: {shown} must be in double quotes, like {key}: \"{shown.strip(chr(39))}\"")
+        bare = shown.strip("'\"").strip()
+        unit = UNITS.get(key)
+        if unit and re.fullmatch(r"[+-]?\d+(?:\.\d+)?", bare):
+            return_hint = f"{bare} {unit}"
+            raise DataError(where, n, f"{key}: {shown} must be in double quotes, with its unit, like {key}: \"{return_hint}\"")
+        raise DataError(where, n, f"{key}: {shown} must be in double quotes, like {key}: \"{bare}\"")
     out, i = [], 1
     while i < len(rest):
         c = rest[i]
@@ -124,10 +131,12 @@ def _block(where, toks, i, indent, parent):
     return _map(where, toks, i, indent)
 
 
-def _list(where, toks, i, indent, parent):
+def _list(where, toks, i, indent, parent, same_indent=False):
     items = []
     while i < len(toks) and toks[i][1] == indent:
         n, _, text = toks[i]
+        if text != "-" and same_indent:
+            break
         if text != "-":
             raise DataError(where, n, f"a label among the entries of {parent}; start each entry with \"- \" "
                                       "or line it up under the entry above")
@@ -152,14 +161,21 @@ def _map(where, toks, i, indent):
             raise DataError(where, n, f"\"{text[:40]}\" is not a label and a value; write it like label: \"value\"")
         key = m.group("key")
         if key in seen:
+            if key == "callsign":
+                raise DataError(where, n, "this position has a call sign but no role; put back its role line "
+                                          "(starting \"- role:\") above it, or delete this call sign line")
             raise DataError(where, n, f"\"{key}\" is given twice (also on line {seen[key]}); keep one")
         seen[key] = n
         v = _value(where, n, key, m.group("rest") or "")
         i += 1
         if v is None:
-            if i >= len(toks) or toks[i][1] <= indent:
+            if i >= len(toks) or toks[i][1] < indent or (toks[i][1] == indent and toks[i][2] != "-"):
                 raise DataError(where, n, f"\"{key}:\" has nothing after it; give a value in quotes, like {key}: \"...\"")
-            v, i = _block(where, toks, i, toks[i][1], f"\"{key}\"")
+            if toks[i][1] == indent and toks[i][2] == "-":
+                # A list written at the same indent as its label (valid YAML).
+                v, i = _list(where, toks, i, indent, f"\"{key}\"", same_indent=True)
+            else:
+                v, i = _block(where, toks, i, toks[i][1], f"\"{key}\"")
         elif i < len(toks) and toks[i][1] > indent:
             raise DataError(where, toks[i][0], "is indented more than the line above it; line it up")
         out[key] = (v, n)
@@ -180,9 +196,12 @@ def strip(v):
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
           "September", "October", "November", "December"]
-CALL = r"(?:[A-Z]{1,2}|[A-Z]\d|\d[A-Z])\d[A-Z]{1,4}"
-PLACEHOLDER = re.compile(r"\b(vacant|tbd|tba|t\.b\.d|to be (filled|named|announced|determined)|open|unfilled|"
-                         r"none|nobody|n/a|position open|volunteer needed)\b", re.I)
+CALL = r"(?:[A-Z]{1,2}|[A-Z]\d|\d[A-Z])\d[A-Z]{1,4}(?:/[A-Z0-9]{1,4})?"
+# Words that mark an empty position: a whole phrase anywhere, or a value that
+# is nothing but one of the short words ("Open", "None").
+PLACEHOLDER = re.compile(r"\b(?:vacant|tbd|tba|t\.b\.d|to be (?:filled|named|announced|determined)|unfilled|"
+                         r"position open|open position|volunteer needed)\b|\((?:open|none|vacant)\)", re.I)
+PLACEHOLDER_ONLY = re.compile(r"\W*(?:open|none|nobody|n/?a|-+)\W*", re.I)
 MARKUP = re.compile(r"[<>*_`\[\]{}\\]")
 FILE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.(docx|pdf)$")
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -265,6 +284,14 @@ class Checker:
         if v != v.strip():
             self.add(line, f"{key}: has a space just inside a quote mark; remove it")
             return
+        bad = re.search(r"[\u00a0\u2000-\u200f\u202f\u205f\u2060\ufeff]", v)
+        if bad:
+            names = {"\u00a0": "a no-break space", "\u202f": "a narrow no-break space", "\u200b": "a zero-width space",
+                     "\ufeff": "a zero-width no-break space", "\u2060": "a word joiner"}
+            what = names.get(bad.group(0), "an unusual space")
+            self.add(line, f"{key}: \"{v}\" contains an invisible character ({what}), probably pasted; delete the "
+                           "space around it and type an ordinary space")
+            return
         if any(ord(c) < 32 for c in v):
             self.add(line, f"{key}: contains a control character; retype the value")
             return
@@ -297,8 +324,8 @@ class Checker:
             return "is not an offset like \"+600 kHz\" or \"-600 kHz\" (a plus or minus sign first)"
 
     def k_tone(self, v):
-        if not re.fullmatch(r"\d{2,3}(?:\.\d)? Hz", v):
-            return "is not a tone like \"100 Hz\" (with a space before Hz)"
+        if not re.fullmatch(r"\d{2,3}(?:\.\d)? Hz|DCS \d{3}|no tone", v):
+            return "is not a tone like \"100 Hz\" (with a space before Hz), a code like \"DCS 023\", or \"no tone\""
 
     def k_call(self, v):
         if not re.fullmatch(CALL, v):
@@ -314,12 +341,12 @@ class Checker:
                     "the site adds the net day itself")
 
     def k_role(self, v):
-        if PLACEHOLDER.search(v):
+        if PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v):
             return ("marks an empty position; when a position is empty, delete its two lines "
                     "(role and callsign) instead")
 
     def k_callsigns(self, v):
-        if PLACEHOLDER.search(v):
+        if PLACEHOLDER.search(v) or PLACEHOLDER_ONLY.fullmatch(v):
             return ("marks an empty position; when a position is empty, delete its two lines "
                     "(role and callsign) instead")
         for c in v.split(","):

@@ -343,5 +343,65 @@ class Resources(Case):
                    "not allowed in page text")
 
 
+class EditorExperience(Case):
+    """R7: honest values pass; mistakes get a message that leads to the fix."""
+
+    def passes(self, name, old, new):
+        self.edit(name, old, new)
+        code, out = self.run_checker()
+        self.assertEqual(code, 0, out)
+
+    def test_open_as_an_ordinary_word(self):
+        self.passes(F, '"AEC, Public Events; Winlink coordinator"', '"AEC, Public Events and Open House"')
+
+    def test_none_as_an_ordinary_word(self):
+        self.passes(F, '"AEC, Hospital Coordinator"', '"AEC, Hospital Coordinator (none of the above)"')
+
+    def test_none_alone_is_refused(self):
+        self.fails(F, 'callsign: "K7MHG"', 'callsign: "None"', "empty position")
+
+    def test_no_tone(self):
+        self.passes(F, 'tone: "123 Hz"', 'tone: "no tone"')
+
+    def test_dcs_code(self):
+        self.passes(F, 'tone: "123 Hz"', 'tone: "DCS 023"')
+
+    def test_decimal_tone(self):
+        self.passes(F, 'tone: "123 Hz"', 'tone: "136.5 Hz"')
+
+    def test_list_at_the_same_indent(self):
+        text = (self.dir / F).read_text(encoding="utf-8")
+        start, end = text.index("meetings:\n") + len("meetings:\n"), text.index("\n# Where the meetings are")
+        block = "\n".join(l[2:] if l.startswith("  ") else l for l in text[start:end].splitlines())
+        (self.dir / F).write_text(text[:start] + block + "\n" + text[end:], encoding="utf-8")
+        code, out = self.run_checker()
+        self.assertEqual(code, 0, out)
+
+    def test_slash_suffix_call_sign(self):
+        self.passes(F, 'callsign: "NV2Z"', 'callsign: "NV2Z/AE"')
+
+    def test_no_break_space(self):
+        self.fails(F, 'time: "8:00 PM"', 'time: "8:00\u00a0PM"', "invisible character (a no-break space)",
+                   "type an ordinary space")
+
+    def test_missing_opening_quote_hint(self):
+        first = self.fails(F, 'day: "Tuesday"', 'day: Tuesday"', "in double quotes")
+        self.assertIn('like day: "Tuesday"', first)
+        self.assertNotIn('""', first)
+
+    def test_unquoted_frequency_hint_has_the_unit(self):
+        self.fails(F, 'freq: "147.300 MHz"', "freq: 147.300", 'like freq: "147.300 MHz"')
+
+    def test_unquoted_tone_hint_has_the_unit(self):
+        self.fails(F, 'tone: "100 Hz"', "tone: 100", 'like tone: "100 Hz"')
+
+    def test_role_line_deleted(self):
+        self.fails(F, '    - role: "AEC, Hospital Coordinator"\n', "",
+                   "this position has a call sign but no role")
+
+    def test_comment_says_two_lines(self):
+        self.assertIn("Two lines per position", (DATA / F).read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
