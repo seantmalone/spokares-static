@@ -30,28 +30,43 @@ The site rebuilds and publishes itself in about two minutes.
   file's `version` (see below).
 - The net day, time and repeater call sign are used on every page that
   mentions them, so change them only in `facts.yaml`.
+- The contact address (`contact.email`) is also printed inside the ARES
+  application. If it changes, upload a corrected application in the same
+  change (see the next section), or the check refuses it.
 
 ## Replace the application or a task book
 
 The site keeps three files: `ares-application.docx`, `acs-task-book.docx`
 and `arrl-ares-task-book.pdf`. The name in `facts.yaml` (`file`) and the
-name of the uploaded file must always be the same.
+name of the uploaded file must always be the same, and the file and its
+`version` should change together. Every commit to `main` publishes, so make
+both changes on a side branch and publish them at once:
 
-1. Rename the new file on your computer to the name the old one has.
-   If it is a different kind (a PDF instead of a Word document), keep the
-   same name but with the new ending, for example `ares-application.pdf`.
-2. In `site/static/files/` on GitHub choose "Add file", then "Upload files",
-   and commit. If the ending changed, also delete the old file there.
-3. In `site/data/facts.yaml`, under `files`, change that file's `version`
-   (written like "November 7, 2024" or "July 2024"). If the ending changed,
-   also change its `file` to the new name and its `kind` to "PDF" or
-   "Word document".
+1. On your computer, rename the new file to the name the old one has. If it
+   is a different kind (a PDF instead of a Word document), keep the same
+   name with the new ending, for example `ares-application.pdf`.
+2. On GitHub open `site/static/files/`, choose "Add file", then "Upload
+   files", and add the file. Under "Commit changes" choose "Create a new
+   branch for this commit and start a pull request", then "Propose
+   changes" and "Create pull request". Nothing is published yet.
+3. Still on that branch (the pull request page names it; pick it in the
+   branch menu), open `site/data/facts.yaml`, choose Edit, and under
+   `files` change that file's `version` (written like "November 7, 2024"
+   or "July 2024"). If the ending changed, also change its `file` to the
+   new name and its `kind` to "PDF" or "Word document", and delete the
+   old file in `site/static/files/` on the same branch. Commit to the
+   branch.
+4. The pull request shows a check. If the ending changed, the check on the
+   first commit fails because `facts.yaml` did not list the new name yet;
+   that is expected and harmless. When the latest check is green, choose
+   "Merge pull request". The file and its version are published together.
 
-A file in `site/static/files/` that is not listed in `facts.yaml`, or a
-listed file that is missing, stops the publish. The check also refuses a
-Word file whose author fields name a person (set them to
-"Spokane County ARES-ACS" or leave them empty: in Word, File, Info,
-Properties) and any personal e-mail address or phone number inside a file.
+A document anywhere in the site that is not one of the files listed in
+`facts.yaml`, or a listed file that is missing, stops the publish. The check also refuses a
+Word file that names a person: tracked changes, comments, or author fields
+other than "Spokane County ARES-ACS". In Word, accept all changes and delete
+comments, then File › Info › Inspect Document › remove personal information.
+It also refuses any personal e-mail address or phone number inside a file.
 
 These three files are the only documents the site holds. Everything else is
 a link to whoever keeps it current.
@@ -61,8 +76,9 @@ a link to whoever keeps it current.
 Edit `site/data/resources.yaml`. Each link has a `title`, an address (`url`)
 and a `note`: one line saying what it is. `opens` is optional: the short
 name of whoever runs the linked site (for example "FEMA"). It is not shown
-on the page; screen readers say it after the link. Copy an existing link's
-lines and change them.
+on the page; screen readers say "(opens FEMA)" after the link, and without
+it they say the site's name from its address (such as "weather.gov").
+Copy an existing link's lines and change them.
 
 - Only link to pages anyone can open without signing in.
 - Addresses start with `https://`. No groups.io or ag7qp.com links here.
@@ -76,13 +92,20 @@ lines and change them.
 Most text is in `site/content/` (one file per page), but the designed parts
 of each page keep their words in `site/layouts/`. Lines that look like
 `{{< net-settings >}}` place one of those designed parts; leave those lines
-as they are. Three things trip people up in `site/content/`:
+as they are. These things trip people up in `site/content/`:
 
 - Keep an empty line between a `{{< … >}}` line and ordinary text, above and
-  below it. Without it the check refuses the change.
+  below it. Outside the blocks (the lines between `{{< section … >}}` and
+  `{{< /section >}}`, or `column`, `chapter`, `how-row`), the check refuses
+  the change without it; inside them it works either way, but keep it for
+  tidiness.
 - Write links to other pages of the site starting with a slash, such as
   `[About](/about/)`, not `about/`.
-- Do not type HTML (anything in `<` `>`); it is refused.
+- Do not type HTML tags (such as `<b>` or `<br>`); the check refuses them
+  and names the line. Plain text such as "< 5 minutes" is fine.
+- A line such as `{.lede}`, `{.m-line}` or `{.lines}` gives the paragraph
+  or list just above it its look. Keep it directly under that paragraph or
+  list, with no empty line between them.
 
 ### Where the words are
 
@@ -150,8 +173,10 @@ belongs, or a broken link.
       agreements (`site/content/about.md`), the ACS task-book table
       (`site/layouts/shortcodes/about-training.html`), the timeline
       (`site/layouts/shortcodes/about-timeline.html`), the legal basis table
-      (`site/layouts/shortcodes/about-legal-basis.html`) and the readiness
-      levels (`site/layouts/shortcodes/how-readiness.html`).
+      (`site/layouts/shortcodes/about-legal-basis.html`), the readiness
+      levels (`site/layouts/shortcodes/how-readiness.html`) and the ARRL
+      levels (`site/layouts/shortcodes/about-arrl-levels.html`), which must
+      agree with the hosted ARRL task book.
 - [ ] The W7GBU club licence is current (look it up by call sign in the
       FCC's license search); its trustee renews it.
 - [ ] At least two people have write access to this repository.
