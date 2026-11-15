@@ -12,4 +12,7 @@
 <link rel="stylesheet" href="{{ partial "url.html" "/css/site.css" }}">
 <link rel="icon" href="{{ partial "url.html" "/img/seal-ares-acs-138.png" }}" type="image/png">
 <script src="{{ partial "url.html" "/js/menu.js" }}" defer></script>
+{{- /* The Copy buttons' script, only on pages that have one (the net settings box). */}}
+{{- if strings.Contains (string .Content) "netbox__copy" }}
 <script src="{{ partial "url.html" "/js/copy.js" }}" defer></script>
+{{- end }}

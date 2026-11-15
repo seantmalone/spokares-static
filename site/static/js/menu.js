@@ -26,6 +26,15 @@
     return nav.classList.contains('is-open');
   }
 
+  // Focus the button without scrolling the page (html has scroll-padding-top,
+  // so a plain focus() jumps). Older browsers ignore preventScroll, so the
+  // scroll position is put back by hand as well.
+  function focusButton() {
+    var x = window.pageXOffset, y = window.pageYOffset;
+    try { button.focus({ preventScroll: true }); } catch (err) { button.focus(); }
+    if (window.pageXOffset !== x || window.pageYOffset !== y) window.scrollTo(x, y);
+  }
+
   function set(open) {
     nav.classList.toggle('is-open', open);
     document.documentElement.classList.toggle('nav-open', open);
@@ -43,7 +52,7 @@
     if (!isOpen()) return;
     if (e.key === 'Escape') {
       set(false);
-      button.focus();
+      focusButton();
       return;
     }
     if (e.key === 'Tab') {
@@ -68,13 +77,16 @@
     if (isOpen() && !nav.contains(e.target)) set(false);
   });
 
-  wide.addEventListener('change', function () {
+  function onWidthChange() {
     var hadFocus = document.activeElement === button;
     var inList = list.contains(document.activeElement);
     set(false);
     // The button is hidden from 1020px up and the links are hidden below it;
     // keep focus on something visible.
     if (hadFocus && wide.matches) links()[0].focus();
-    if (inList && !wide.matches) button.focus();
-  });
+    if (inList && !wide.matches) focusButton();
+  }
+  // Safari before 14 has only the older addListener.
+  if (wide.addEventListener) wide.addEventListener('change', onWidthChange);
+  else if (wide.addListener) wide.addListener(onWidthChange);
 })();
