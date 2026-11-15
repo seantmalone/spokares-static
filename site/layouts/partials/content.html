@@ -5,7 +5,8 @@
        paragraph never starts with a block tag (raw HTML is not allowed in
        Markdown here), so nothing else is touched. Usage: {{ partial "content.html" . }} */ -}}
 {{- $block := `div|section|figure|nav|aside|header|footer|table|ul|ol|dl|p|hr|h[1-6]` -}}
-{{- $c := string .Content -}}
+{{- $c := "" -}}
+{{- if not (.Store.Get "spk-bad-source") }}{{ $c = string .Content }}{{ end -}}
 {{- $where := .File.Path -}}
 {{- $out := "" -}}
 {{- $rest := $c -}}

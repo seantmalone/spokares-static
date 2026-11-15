@@ -534,6 +534,9 @@ def main():
             m = rx.search(text)
             if m:
                 problems.append(f'{rel}: "{context(text, m)}": "{m.group(0).strip(" |")}" {why}')
+        if "raw html omitted" in raw.lower():
+            problems.append(f"{rel}: raw HTML was dropped from the page (\"raw HTML omitted\"); remove the HTML tags "
+                            "from the page text")
         for token in FORBIDDEN_RAW:
             if token in raw.lower():
                 problems.append(f"{rel}: forbidden class or path {token!r} in the HTML")

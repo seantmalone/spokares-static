@@ -178,7 +178,7 @@ class RawHtmlInBlocks(Build):
 
     def typed(self, snippet):
         self.edit("content/members.md", self.SPOT, f"{snippet}\n\n{self.SPOT}")
-        return self.refused("raw HTML")
+        return self.refused("HTML tags are not allowed in page text")
 
     def test_plain_external_link_div(self):
         self.typed('<div><a href="https://evil.example/">x</a></div>')
@@ -224,6 +224,57 @@ class RawHtmlInBlocks(Build):
         self.edit("content/about.md", "## Contact {#contact}\n", "## Contact {#contact}\n\n```\nline one\nline two\n```\n")
         about = self.page(self.built(), "about/index.html")
         self.assertRegex(about, r"line one\nline two")
+
+
+class InlineHtml(Build):
+    """R5: HTML tags typed in page text stop the build with one line naming the file and line."""
+
+    SPOT = "**After any exercise:**"
+
+    def one_line(self, out):
+        errors = [l for l in out.splitlines() if "ERROR" in l and "error building site" not in l]
+        self.assertTrue(errors, out)
+        self.assertLess(len(errors[0]), 400, errors[0])
+        self.assertNotIn("ignoreLogs", out)
+        return errors[0]
+
+    def line_of(self, rel, text):
+        for n, l in enumerate((self.site / rel).read_text(encoding="utf-8").splitlines(), 1):
+            if text in l:
+                return n
+
+    def test_inline_tag_inside_a_column(self):
+        self.edit("content/members.md", self.SPOT, "Press <kbd>Enter</kbd> to send.\n\n" + self.SPOT)
+        n = self.line_of("content/members.md", "<kbd>")
+        e = self.one_line(self.refused())
+        self.assertIn(f"members.md:{n}: HTML tags are not allowed in page text; remove <kbd>", e)
+
+    def test_inline_tag_at_top_level(self):
+        self.edit("content/members.md", '{{< section class="members-row members-row--cards"',
+                  'Hello <span class="x">there</span>.\n\n{{< section class="members-row members-row--cards"')
+        n = self.line_of("content/members.md", "<span")
+        e = self.one_line(self.refused())
+        self.assertIn(f"members.md:{n}: HTML tags are not allowed in page text; remove <span", e)
+
+    def test_br_inside_how_row(self):
+        self.edit("content/how-it-works.md", "2. Officials check in.", "2. Officials<br>check in.")
+        self.assertIn("remove <br>", self.one_line(self.refused()))
+
+    def test_comment(self):
+        self.edit("content/members.md", self.SPOT, "<!-- note to self -->\n\n" + self.SPOT)
+        self.assertIn("remove <!--", self.one_line(self.refused()))
+
+    def test_plain_text_with_angle_brackets_is_fine(self):
+        self.edit("content/members.md", self.SPOT, "Check-ins take < 5 minutes. We <3 Field Day. "
+                  "Type `<kbd>` in a code span.\n\n```\n<b>in a code block</b>\n```\n\n" + self.SPOT)
+        page = self.page(self.built(), "members/index.html")
+        self.assertIn("&lt; 5 minutes", page)
+        self.assertIn("&lt;kbd&gt;", page)
+
+    def test_ignore_logs_in_config(self):
+        (self.site / "hugo.toml").write_text((self.site / "hugo.toml").read_text(encoding="utf-8")
+                                              + '\nignoreLogs = ["warning-goldmark-raw-html"]\n', encoding="utf-8")
+        self.assertIn("ignoreLogs", [l for l in self.refused().splitlines() if "ERROR" in l][0])
 
 
 class PreviewSwitch(Build):

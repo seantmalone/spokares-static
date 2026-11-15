@@ -43,7 +43,7 @@
     {{- continue -}}
   {{- else if strings.HasPrefix $tr "<" -}}
     {{- if not (findRE `^<(?:[a-zA-Z][a-zA-Z0-9+.-]*:[^\s<>]*|[^\s<>@]+@[^\s<>@]+)>` $tr) -}}
-      {{- errorf "%s: this line is raw HTML, which is not allowed in page text: %q. Write it as ordinary text, or ask for a shortcode that makes it." $where (substr $tr 0 100) -}}
+      {{- errorf "%s: HTML tags are not allowed in page text; remove %s" $where (substr $tr 0 60) -}}
     {{- end -}}
   {{- end -}}
   {{- $md = $md | append $line -}}

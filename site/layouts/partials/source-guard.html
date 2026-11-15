@@ -1,0 +1,36 @@
+{{- /* Stops the build, with the file and line, when a content file has HTML
+       typed into its text: a tag such as <kbd>, <br>, <span …> or a comment
+       <!-- … -->. Markdown would otherwise drop it silently ("raw HTML
+       omitted"). Text such as "< 5 minutes" or "<3", autolinks
+       (<https://…>), code spans (`<kbd>`), code blocks and shortcode lines
+       are left alone. Also refuses ignoreLogs in hugo.toml, which would hide
+       that warning. Called once per page from baseof.html; returns "". When it
+       stops the build it marks the page (Store "spk-bad-source") so the page's
+       content is not rendered, and Hugo adds no second, misleading warning. */ -}}
+{{- if findRE `(?i)ignorelogs` (readFile "hugo.toml") -}}
+  {{- errorf "site/hugo.toml: remove the ignoreLogs setting; it would let dropped HTML or other warnings publish" -}}
+{{- end -}}
+{{- with .File -}}
+  {{- $rel := printf "site/content/%s" .Path -}}
+  {{- $lines := split (readFile (path.Join "content" .Path)) "\n" -}}
+  {{- $front := false -}}
+  {{- $fence := "" -}}
+  {{- range $i, $line := $lines -}}
+    {{- $t := strings.TrimSpace $line -}}
+    {{- if eq $i 0 }}{{ if eq $t "---" }}{{ $front = true }}{{ continue }}{{ end }}{{ end -}}
+    {{- if $front }}{{ if eq $t "---" }}{{ $front = false }}{{ end }}{{ continue }}{{ end -}}
+    {{- if $fence -}}
+      {{- if and (strings.HasPrefix $t $fence) (eq (strings.Trim $t (substr $fence 0 1)) "") }}{{ $fence = "" }}{{ end -}}
+      {{- continue -}}
+    {{- end -}}
+    {{- with findRE "^(```+|~~~+)" $t 1 }}{{ $fence = index . 0 }}{{ continue }}{{ end -}}
+    {{- $plain := replaceRE "`+[^`]*`+" "" $line -}}
+    {{- $plain = replaceRE `\{\{[<%].*?[%>]\}\}` "" $plain -}}
+    {{- with findRE `<!--|</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>` $plain 1 -}}
+      {{- errorf "%s:%d: HTML tags are not allowed in page text; remove %s" $rel (add $i 1) (substr (index . 0) 0 40) -}}
+      {{- $.Store.Set "spk-bad-source" true -}}
+      {{- break -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- return "" -}}

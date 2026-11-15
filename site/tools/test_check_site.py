@@ -733,6 +733,10 @@ class InjectedHtml(Case):
         self.body('<svg><a xlink:href=" java\tscript:alert(1)"><text>x</text></a></svg>')
         self.assertFails("a javascript: value in xlink:href= is not allowed")
 
+    def test_raw_html_omitted(self):
+        self.body("<p><!-- raw HTML omitted -->Hello</p>")
+        self.assertFails("raw HTML was dropped")
+
     def test_vbscript_href(self):
         self.body('<p><a href="vbscript:msgbox">x</a></p>')
         self.assertFails("vbscript")
