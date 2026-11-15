@@ -733,6 +733,26 @@ class InjectedHtml(Case):
         self.body('<svg><a xlink:href=" java\tscript:alert(1)"><text>x</text></a></svg>')
         self.assertFails("a javascript: value in xlink:href= is not allowed")
 
+    def test_inline_script(self):
+        self.body("<script>alert(1)</script><p>x</p>")
+        self.assertFails("an inline <script> (without src) is not allowed")
+
+    def test_svg_image_external(self):
+        self.body('<svg><image href="https://evil.example/x.png"/></svg>')
+        self.assertFails("an outside address on an SVG <image> is not allowed")
+
+    def test_svg_use_external(self):
+        self.body('<svg><use xlink:href="//evil.example/s.svg#a"/></svg>')
+        self.assertFails("an outside address on an SVG <use> is not allowed")
+
+    def test_svg_use_local_is_fine(self):
+        self.body('<svg><defs><path id="p" d="M0 0"/></defs><use href="#p"/></svg>')
+        self.assertPasses()
+
+    def test_ping(self):
+        self.body('<p><a href="https://www.arrl.org/" ping="https://evil.example/t">ARRL</a></p>')
+        self.assertFails("the ping= attribute is not allowed")
+
     def test_raw_html_omitted(self):
         self.body("<p><!-- raw HTML omitted -->Hello</p>")
         self.assertFails("raw HTML was dropped")

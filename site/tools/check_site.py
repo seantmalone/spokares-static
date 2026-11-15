@@ -184,6 +184,15 @@ class Page(HTMLParser):
             self.styles += 1
         if tag in BANNED_TAGS:
             self.banned.append((f"<{tag}>", ""))
+        if tag == "script" and not a.get("src"):
+            self.banned.append(("an inline <script> (without src)", ""))
+        if tag in ("image", "use"):
+            ref = a.get("href") or a.get("xlink:href") or ""
+            u = urlparse(ref.strip())
+            if u.scheme or u.netloc:
+                self.banned.append((f"an outside address on an SVG <{tag}>", ref[:60]))
+        if "ping" in a:
+            self.banned.append(("the ping= attribute", a["ping"][:60]))
         if tag == "meta" and "http-equiv" in a:
             self.banned.append(("<meta http-equiv>", a["http-equiv"]))
         for k, v in a.items():
