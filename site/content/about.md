@@ -36,7 +36,7 @@ toc_labels:
 
 ### How we work with agencies {#for-agencies}
 
-Agencies request support through Spokane County Emergency Management.
+An agency that needs radio support asks Spokane County Emergency Management, which calls on us.
 {{< /chapter >}}
 
 {{< chapter >}}
@@ -54,16 +54,16 @@ Agencies request support through Spokane County Emergency Management.
 
 ### ARES {#ares-path}
 
-1. Fill out the Spokane County ARES Membership Application. It includes a county non-disclosure agreement.
+1. Fill out the Spokane County ARES membership application. It includes a county non-disclosure agreement.
 {.seq}
 
 {{< button file="ares-application" text="Get the ARES application" class="btn--red" >}}
 
-2. Hand it to the Emergency Coordinator or an AEC at a meeting.
+2. Bring it to a meeting and give it to the Emergency Coordinator or an AEC, or send it to the [contact address](#contact).
 3. Track your training in the [ARRL ARES Task Book](#arrl-task-book).
 {.seq}
 
-ARRL membership isn’t needed to join. The ARRL requires it from its Intermediate level up; EC and AEC appointments also need the Advanced level.
+ARRL membership isn’t needed to join.
 {.note}
 
 {{< about-acs-path >}}
