@@ -3,7 +3,7 @@
 {{- $street := partial "fact.html" "place.street" -}}
 {{- $city := partial "fact.html" "place.city" -}}
 {{- $day := partial "fact.html" "net.day" -}}
-<div class="is-view-home wp-block-spokares-meetings"><p><strong>In person</strong> at {{ $name }}, {{ $street }}, {{ index (split $city ",") 0 }}:</p><ul class="meetings">
+<div class="is-view-home wp-block-spokares-meetings"><p><strong>In person</strong> at {{ $name }}, {{ $street }}, {{ $city }}:</p><ul class="meetings">
   {{- range partial "fact.html" "meetings" }}
   {{- if not (and .name .when) }}{{ errorf "facts.yaml: every meeting needs a name and a when" }}{{ end }}
   <li><span><strong>{{ .name }}:</strong> {{ partial "glue.html" .when }}{{ with .extra }}; {{ partial "glue.html" . }}{{ end }}.</span></li>

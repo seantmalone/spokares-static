@@ -20,29 +20,33 @@ repeater:
     call: "WXL86"
     freq: "162.400 MHz"
 
-# Winlink nights: which Tuesdays of the month.
-winlink_nights: "second and fourth Tuesdays"
+# Winlink nights: which weeks of the month the net is a Winlink night. Name
+# the weeks only; the site adds the net day ("second and fourth Tuesdays").
+winlink_nights: "second and fourth"
 
 # Meetings. "when" is the rule exactly as it should read on the site.
 # Never put a date here.
 meetings:
-  - name: "Second Saturday Workshop"
+  - name: "Workshop"
     when: "Second Saturday of each month, 9:00 AM to noon"
     extra: "then a Winlink workshop, 12:30 to 3:30 PM"
-  - name: "Third Thursday training meeting"
+  - name: "Training meeting"
     when: "Third Thursday of each month, 6:00 PM"
 
+# Where the meetings are. The site prints the name, street and city
+# ("…, 1121 W Gardner Ave, Spokane"); state_zip completes the postal address.
 place:
   name: "Spokane County Emergency Management"
   street: "1121 W Gardner Ave"
-  city: "Spokane, WA 99260"
+  city: "Spokane"
+  state_zip: "WA 99260"
 
 # Leadership. One line per position. Remove a line when a position is empty;
 # do not write "open" or "vacant". "AEC" is Assistant Emergency Coordinator
 # (the site spells it out the first time).
 leadership:
   unit:
-    - role: "Emergency Coordinator; website admin"
+    - role: "Emergency Coordinator"
       callsign: "W7TSC"
     - role: "AEC, Public Events; Winlink coordinator"
       callsign: "NV2Z"
