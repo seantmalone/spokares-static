@@ -13,7 +13,7 @@
 {{- $acopy := printf "Alternate repeater %s, %s offset, %s tone" $afreq $aoff $atone -}}
 {{- /* On screen a negative offset gets a true minus sign, as on the WordPress site. */ -}}
 {{- $minus := "−" -}}
-{{- $icon := `<svg class="icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" /><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" /></svg>` | safeHTML -}}
+{{- $icon := `<svg class="icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" /><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" /></svg>` | safeHTML -}}
 <div class="is-view-settings wp-block-spokares-net"><div class="netbox" id="weekly-net"><p class="netbox__when">Every {{ $day }}, {{ partial "glue.html" $time }}</p><dl class="netbox__rows"><div><dt>{{ $pcall }}</dt><dd>{{ partial "glue.html" (printf "%s, %s, %s" $pfreq (replace $poff "-" $minus) $ptone) }} tone</dd><dd><button class="btn btn--ghost btn--sm netbox__copy" type="button" data-copy-text="{{ $pcopy }}" hidden>{{ $icon }}Copy<span class="vh"> {{ $pcall }} settings</span></button></dd></div><div><dt>Alternate</dt><dd>{{ partial "glue.html" (printf "%s, %s, %s" $afreq (replace $aoff "-" $minus) $atone) }} tone</dd><dd><button class="btn btn--ghost btn--sm netbox__copy" type="button" data-copy-text="{{ $acopy }}" hidden>{{ $icon }}Copy<span class="vh"> alternate settings</span></button></dd></div></dl></div></div>
 {{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

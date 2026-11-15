@@ -2,6 +2,6 @@
        are listed. Exam days, places and fees are not copied here; Resources links
        to the organisations that keep them current. No arguments. */ -}}
 {{- partial "nested.html" (dict "sc" . "edge" "open") -}}
-<h3>Ways to study</h3><ul><li><strong>On your own:</strong> free practice sites such as <a class="ext" href="https://hamstudy.org/">HamStudy<span class="vh"> (opens hamstudy.org)</span></a> drill the real questions.</li><li><strong>With a class or online:</strong> ask at a meeting or on the net about local classes and courses.</li></ul><h3>Where to take the exam</h3><p>Exam sessions and study help are listed on <a href="{{ partial "url.html" "/resources/#licensing" }}">Resources</a>.</p>
+<h3>Ways to study</h3><ul><li><strong>On your own:</strong> free practice sites such as {{ partial "ext-link.html" (dict "url" "https://hamstudy.org/" "text" "HamStudy" "opens" "hamstudy.org") }} drill the real questions.</li><li><strong>With a class or online:</strong> ask at a meeting or on the net about local classes and courses.</li></ul><h3>Where to take the exam</h3><p>Exam sessions and study help are listed on <a href="{{ partial "url.html" "/resources/#licensing" }}">Resources</a>.</p>
 {{- partial "nested.html" (dict "sc" . "edge" "close") -}}
 {{- /* no trailing newline */ -}}

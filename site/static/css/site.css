@@ -1538,3 +1538,67 @@ nav.footer__links li > a:hover { text-decoration-color: var(--amber); text-decor
    heading does not draw a second rule of its own. */
 h2.m-head + .lines, .doc-group__head + .lines { border-top: 0; }
 .m-head + .lines > li:first-child, .doc-group__head + .lines > li:first-child { padding-top: 4px; }
+
+/* ============================================================ Static port: final visual fixes */
+/* External links: the arrow is drawn after the last word (span.ext__tail,
+   written by partials/ext-link.html), which never wraps, so the arrow cannot
+   sit on a line of its own or split "(ICS-213RR)". Same arrow as .ext::after. */
+.ext:has(.ext__tail)::after { content: none; }
+.ext__tail { white-space: nowrap; }
+.ext__tail::after {
+  content: ""; display: inline-block; width: .72em; height: .72em; margin-left: .32em; vertical-align: .02em;
+  background: currentColor; opacity: .85;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 1.5H10.5V7.5M10.2 1.8L2 10' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / contain;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 1.5H10.5V7.5M10.2 1.8L2 10' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+/* A hosted file's kind and version stay on one line. */
+.buttons .file-meta { white-space: nowrap; }
+
+/* For members and Resources: two columns down to 1020px, one below that;
+   a single column keeps a readable line length. For members uses one grid
+   for every row: the hub's 7:5 columns, 72px apart, so the net settings
+   keep their width and every row's columns line up. */
+@media (min-width: 1020px) and (max-width: 1100px) {
+  .resources-row .ex-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (min-width: 1020px) {
+  .members-row .ex-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: 72px; }
+}
+@media (max-width: 1019.98px) {
+  .members-row .ex-grid > *, .resources-row .ex-grid > * { max-width: 70ch; }
+}
+.page-head + .members-row .ex-grid { margin-top: 0; }
+/* Row one: the two cards end at the same height. */
+.members-row--cards .ex-grid { align-items: stretch; }
+.members-row--cards .ex-grid > section { display: flex; flex-direction: column; }
+.members-row--cards .ex-grid > section > :last-child { flex: 1 1 auto; display: flex; flex-direction: column; }
+.members-row--cards .ex-grid > section > :last-child > .netbox, .members-row--cards .members-group { flex: 1 1 auto; }
+/* A section that spans the whole row, its list in two columns on wide screens. */
+.members-row .ex-grid > .span-all { grid-column: 1 / -1; }
+@media (min-width: 1020px) {
+  .span-all .lines { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: 72px; }
+}
+/* An intro line between a ruled heading and its list: the list draws no
+   second rule right under the line. */
+.m-line + .lines { margin-top: 8px; border-top: 0; }
+/* Section headings on For members and Resources are drawn one way: the
+   members' hairline rule (round-3 choice; --m-head-rule). */
+.doc-group__head { border-bottom: var(--m-head-rule); }
+
+/* About at 320px: the unit table's call column may wrap rather than scroll. */
+@media (max-width: 359.98px) {
+  .roles:has(+ .roles) td:last-child { min-width: 0; }
+}
+/* The copy notice uses the width it needs, up to 360px. */
+.toast { width: max-content; max-width: min(90vw, 360px); }
+
+/* Print: dark bands print as black text on white; on-screen controls are left out. */
+@media print {
+  .dark, .bg-night, .bg-slate-2, .bg-slate, .bg-storm, .site-header, .site-footer, .hero, .card--night,
+  .dark *, .bg-night *, .bg-slate-2 *, .bg-slate *, .bg-storm *, .site-header *, .site-footer *, .hero *, .card--night * {
+    color: #000 !important; background: transparent !important; --fg: #000; --muted: #222; --link: #000;
+  }
+  .hero .wp-block-cover__image-background, .dawn-sky, .how-dawn { display: none !important; }
+  .btn { border: 1px solid #000 !important; color: #000 !important; background: transparent !important; }
+  .netbox__copy, .nav__toggle, .contents-fab { display: none !important; }
+}

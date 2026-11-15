@@ -10,14 +10,14 @@ The weekly net, the members’ group, our forms and what to bring.
 {.lede}
 {{< /section >}}
 
-{{< section class="members-row" inner="wrap hub-grid" >}}
-{{< column class="hub-net" >}}
+{{< section class="members-row members-row--cards" inner="wrap ex-grid" >}}
+{{< column class="ex-section" >}}
 ## The weekly net {#net .m-head}
 
 {{< net-settings >}}
 {{< /column >}}
 
-{{< column class="hub-week" >}}
+{{< column class="ex-section" >}}
 ## The members’ group {#group .m-head}
 
 {{< members-group >}}
@@ -41,7 +41,10 @@ The weekly net, the members’ group, our forms and what to bring.
 {.m-line .ex-after}
 {{< /column >}}
 
-{{< column class="ex-section" >}}
+{{< /section >}}
+
+{{< section class="members-row" inner="wrap ex-grid" >}}
+{{< column class="ex-section span-all" >}}
 ## Public-service events {#public-service .m-head}
 
 We help at the same community events most years:

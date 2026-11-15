@@ -5,7 +5,8 @@
 
        opens is optional; without it the label names the host (www. dropped).
        class adds classes beside "ext". file names the data file the address
-       came from, for the error message. */ -}}
+       came from, for the error message. The arrow is drawn after the last
+       word (span.ext__tail), which never wraps away from it. */ -}}
 {{- $file := .file | default "the page" -}}
 {{- $url := string (or .url "") -}}
 {{- $text := string (or .text "") -}}
@@ -16,4 +17,12 @@
 {{- end -}}
 {{- $opens := or .opens (strings.TrimPrefix "www." (urls.Parse $url).Hostname) -}}
 {{- $class := trim (printf "%s ext" (or .class "")) " " -}}
-{{- return (printf `<a class="%s" href="%s">%s<span class="vh"> (opens %s)</span></a>` $class (htmlEscape $url) (htmlEscape $text) (htmlEscape $opens) | safeHTML) -}}
+{{- /* The last word and the arrow stay together on one line (.ext__tail).
+       A button (class btn) is one flex line already and keeps the plain form. */ -}}
+{{- $inner := htmlEscape $text -}}
+{{- if not (in (split $class " ") "btn") -}}
+  {{- $words := split $text " " -}}
+  {{- $last := index $words (sub (len $words) 1) -}}
+  {{- $inner = printf `%s<span class="ext__tail">%s</span>` (htmlEscape (strings.TrimSuffix $last $text)) (htmlEscape $last) -}}
+{{- end -}}
+{{- return (printf `<a class="%s" href="%s">%s<span class="vh"> (opens %s)</span></a>` $class (htmlEscape $url) $inner (htmlEscape $opens) | safeHTML) -}}
