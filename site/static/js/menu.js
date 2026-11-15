@@ -6,11 +6,14 @@
  * button; the page does not scroll while it is open; choosing a link, clicking
  * outside the menu or widening the window past 1020px closes it. From 1020px
  * up site.css shows the links in the bar and hides the button. Without
- * JavaScript site.css shows the links in a row under the bar instead.
+ * JavaScript site.css shows the links in a row under the bar instead; that
+ * layout is keyed on <html> lacking the class "js", which this script adds, so
+ * it is also used when this file fails to load.
  */
 (function () {
   var nav = document.querySelector('.nav');
   if (!nav) return;
+  document.documentElement.classList.add('js');
   var button = nav.querySelector('.nav__toggle');
   var list = nav.querySelector('.nav__list');
   var wide = window.matchMedia('(min-width: 1020px)');
@@ -67,8 +70,11 @@
 
   wide.addEventListener('change', function () {
     var hadFocus = document.activeElement === button;
+    var inList = list.contains(document.activeElement);
     set(false);
-    // The button is hidden from 1020px up; keep focus on something visible.
+    // The button is hidden from 1020px up and the links are hidden below it;
+    // keep focus on something visible.
     if (hadFocus && wide.matches) links()[0].focus();
+    if (inList && !wide.matches) button.focus();
   });
 })();
