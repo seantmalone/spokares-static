@@ -542,6 +542,21 @@ class Regressions(Build):
             if note not in about:
                 self.fail(f"About lacks {note}")
 
+    def test_about_training_agrees_with_the_task_book(self):
+        # G5: the ACS book marks the General license as kept ("R-Maintain"), not done once;
+        # what the task books list is said once; AEC is spelled out where it is first used.
+        pub = self.built()
+        about = self.page(pub, "about/index.html")
+        row = re.search(r"Level 3: </span>.*?</tr>", about).group(0)
+        once, regularly = re.findall(r'<td data-label="[^"]+">(.*?)</td>', row)
+        self.assertNotIn("General license", once)
+        self.assertIn("General license", regularly)
+        text = page_text(pub / "about" / "index.html")
+        self.assertNotIn("who signs off", text)
+        body = text[text.index("ARES and ACS ARES Amateur Radio"):]
+        first = re.search(r"\bAECs?\b", body)
+        self.assertTrue(body[:first.end()].endswith("Assistant Emergency Coordinators (AECs"), body[first.start() - 80:first.end()])
+
     def test_form_numbers_do_not_break(self):
         pub = self.built()
         self.assertIn('<span class="nobr">(ICS-213RR)</span>', self.page(pub, "resources/index.html"))

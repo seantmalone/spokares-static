@@ -73,8 +73,6 @@ ARRL membership isn’t needed to join.
 {{< chapter >}}
 ## Training and task books {#training-path}
 
-Task books list what each level requires and who signs off on it.
-
 ### ACS task book {#acs-task-book}
 
 {{< about-training >}}
