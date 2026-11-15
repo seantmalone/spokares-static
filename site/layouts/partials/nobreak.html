@@ -1,0 +1,9 @@
+{{- /* Keeps form numbers such as "ICS-213RR" on one line (no break at the
+       hyphen) in rendered HTML: each one in a text node is wrapped in
+       <span class="nowrap">. Usage: partial "nobreak.html" $html. Used for
+       Markdown blocks and the Resources list. */ -}}
+{{- $out := string . -}}
+{{- range uniq (findRE `>[^<]*\bICS-\d[^<]*<` $out) -}}
+  {{- $out = replace $out . (replaceRE `\bICS-(\d+[A-Z]*)` `<span class="nowrap">ICS-$1</span>` .) -}}
+{{- end -}}
+{{- return ($out | safeHTML) -}}

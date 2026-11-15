@@ -277,6 +277,30 @@ class InlineHtml(Build):
         self.assertIn("ignoreLogs", [l for l in self.refused().splitlines() if "ERROR" in l][0])
 
 
+class Regressions(Build):
+    """R15, R17: behaviour the first fix wave added, kept by tests."""
+
+    def test_copy_js_only_where_there_is_a_copy_button(self):
+        pub = self.built()
+        for p in sorted(pub.rglob("*.html")):
+            page = p.read_text(encoding="utf-8")
+            self.assertEqual("copy.js" in page, "netbox__copy" in page, p.relative_to(pub))
+        self.assertIn("copy.js", self.page(pub, "how-it-works/index.html"))
+        self.assertNotIn("copy.js", self.page(pub, "about/index.html"))
+
+    def test_menu_js_keeps_its_fallbacks(self):
+        js = (SITE / "static/js/menu.js").read_text(encoding="utf-8")
+        self.assertIn("addListener(", js)
+        self.assertIn("preventScroll: true", js)
+        self.assertIn("window.scrollTo(x, y)", js)
+
+    def test_form_numbers_do_not_break(self):
+        pub = self.built()
+        self.assertIn('<span class="nowrap">ICS-213RR</span>', self.page(pub, "resources/index.html"))
+        self.assertIn('<span class="nowrap">ICS-213RR</span>', self.page(pub, "members/index.html"))
+        self.assertNotIn('nowrap"><span class="nowrap', self.page(pub, "members/index.html"))
+
+
 class PreviewSwitch(Build):
     """M8: params.preview decides noindex; the live build has none."""
 

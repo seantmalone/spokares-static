@@ -49,7 +49,9 @@
   {{- $md = $md | append $line -}}
 {{- end -}}
 {{- if $in }}{{ errorf "%s: a nested shortcode's HTML was not closed; put each shortcode on a line of its own" $where }}{{ end -}}
-{{- $html := string (.page.RenderString (dict "display" "block") (delimit $md "\n")) -}}
+{{- /* Form numbers in the Markdown text stay on one line (partials/nobreak.html);
+       shortcode HTML is put back afterwards, untouched. */ -}}
+{{- $html := string (partial "nobreak.html" (.page.RenderString (dict "display" "block") (delimit $md "\n"))) -}}
 {{- range $i, $b := $blocks -}}
   {{- with findRE `(?i)<[a-z][^>]*?\s(?:style|on[a-z]+)\s*=|<style[\s>]|<script[\s>]` $b 1 -}}
     {{- errorf "%s: a shortcode's HTML carries %q, which the site does not allow" $where (index . 0) -}}

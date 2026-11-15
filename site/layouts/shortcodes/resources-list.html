@@ -19,7 +19,8 @@
     {{- $u := partial "field.html" (dict "item" . "key" "url" "list" $where "file" $R) -}}
     {{- $n := partial "field.html" (dict "item" . "key" "note" "list" $where "file" $R) -}}
     {{- $o := partial "field.html" (dict "item" . "key" "opens" "list" $where "file" $R "optional" true) -}}
-    <li>{{ partial "ext-link.html" (dict "url" $u "text" $t "opens" $o "class" "doc-title" "file" $R) }}<span class="doc-note">{{ $n }}</span></li>
+    {{- $li := printf `<li>%s<span class="doc-note">%s</span></li>` (partial "ext-link.html" (dict "url" $u "text" $t "opens" $o "class" "doc-title" "file" $R)) (htmlEscape $n) }}
+    {{- partial "nobreak.html" $li -}}
   {{- end -}}
   </ul></section>
 {{- end -}}
