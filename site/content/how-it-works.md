@@ -29,7 +29,7 @@ What happens, in order
 {{< how-activation-steps >}}
 {{< how-readiness >}}
 {{< how-row id="standing-order-1b" title="When no one has called yet" level="3" >}}
-If communications fail and there are no instructions, the Eastern Washington Section’s standing order for self-activation applies. Safety comes first: no one is asked to leave home or travel. Then send a Washington State Field Situation Report by Winlink.
+If communications fail and there are no instructions, the Eastern Washington Section’s standing order for self-activation applies. Safety comes first: no one is asked to leave home or travel. Then send a Washington State Field Situation Report by voice or Winlink.
 {{< /how-row >}}
 {{< /section >}}
 

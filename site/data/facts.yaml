@@ -13,6 +13,7 @@ repeater:
     offset: "+600 kHz"
     tone: "100 Hz"
   alternate:
+    call: "WR7VHF"
     freq: "146.880 MHz"
     offset: "-600 kHz"
     tone: "123 Hz"
@@ -29,7 +30,6 @@ winlink_nights: "second and fourth"
 meetings:
   - name: "Workshop"
     when: "Second Saturday of each month, 9:00 AM to noon"
-    extra: "then a Winlink workshop, 12:30 to 3:30 PM"
   - name: "Training meeting"
     when: "Third Thursday of each month, 6:00 PM"
 

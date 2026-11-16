@@ -264,7 +264,7 @@ SCHEMA_FACTS = {
     "net": {"day": "weekday", "time": "time"},
     "repeater": {
         "primary": {"call": "call", "freq": "freq", "offset": "offset", "tone": "tone"},
-        "alternate": {"freq": "freq", "offset": "offset", "tone": "tone"},
+        "alternate": {"call": "call", "freq": "freq", "offset": "offset", "tone": "tone"},
         "weather": {"call": "weather_call", "freq": "freq"},
     },
     "winlink_nights": "nights",

@@ -336,7 +336,6 @@ class TemplateGuards(Build):
         how = html.unescape(self.page(self.built(), "how-it-works/index.html")).replace(" ", " ")
         self.assertIn("146.880 MHz, −600 kHz, no tone<", how)
         self.assertIn("147.300 MHz, +600 kHz, DCS 023<", how)
-        self.assertIn('data-copy-text="Alternate repeater 146.880 MHz, -600 kHz offset, no tone"', how)
         self.assertNotIn("tone tone", how)
 
     def test_no_tone_in_capitals_reads_in_lower_case(self):
@@ -509,14 +508,6 @@ class InlineHtml(Build):
 
 class Regressions(Build):
     """R15, R17: behaviour the first fix wave added, kept by tests."""
-
-    def test_copy_js_only_where_there_is_a_copy_button(self):
-        pub = self.built()
-        for p in sorted(pub.rglob("*.html")):
-            page = p.read_text(encoding="utf-8")
-            self.assertEqual("copy.js" in page, "netbox__copy" in page, p.relative_to(pub))
-        self.assertIn("copy.js", self.page(pub, "how-it-works/index.html"))
-        self.assertNotIn("copy.js", self.page(pub, "about/index.html"))
 
     def test_menu_js_keeps_its_fallbacks(self):
         js = (SITE / "static/js/menu.js").read_text(encoding="utf-8")

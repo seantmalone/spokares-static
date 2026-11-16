@@ -676,7 +676,7 @@ a.tag--open:hover { border-style: solid; }
 .netbox { background: #fff; border: 1px solid var(--rule); border-top: 4px solid var(--peach); border-radius: var(--r-card); padding: 22px 26px 12px; color: var(--ink); }
 .netbox__when { font: 600 24px/1.2 var(--sans); letter-spacing: -.01em; color: var(--ink); font-variant-numeric: lining-nums; }
 .netbox__rows { margin: 14px 0 0; }
-.netbox__rows > div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rule); }
+.netbox__rows > div { display: grid; grid-template-columns: 10em minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rule); }
 .netbox__rows dt { font-size: 15px; font-weight: 600; color: var(--ink-2); }
 .netbox__rows dd { margin: 0; font: 600 17px/1.4 var(--sans); color: var(--ink); font-variant-numeric: lining-nums; }
 .btn.netbox__copy { min-height: 40px; padding: 6px 14px; }
