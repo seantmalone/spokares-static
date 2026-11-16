@@ -12,6 +12,22 @@
 # schedules or fees here; link to them. No groups.io links, no net scripts.
 # Do not rename or remove a group's id: other pages link to it.
 groups:
+  - id: "licensing"
+    title: "Getting licensed"
+    links:
+      - title: "HamStudy"
+        url: "https://hamstudy.org/"
+        opens: "hamstudy.org"
+        note: "Free practice for the license exams, with the real question pools."
+      - title: "ARRL exam session search"
+        url: "https://www.arrl.org/find-an-amateur-radio-license-exam-session"
+        opens: "ARRL"
+        note: "Find an exam session near you, in person or online."
+      - title: "FCC Registration Number (FRN)"
+        url: "https://www.fcc.gov/wireless/support/universal-licensing-system-uls-resources/getting-fcc-registration-number-frn"
+        opens: "FCC"
+        note: "How to get the number the FCC asks for before your exam."
+
   - id: "training"
     title: "Training"
     links:
@@ -31,10 +47,6 @@ groups:
         url: "https://www.arrl.org/emergency-communications-training"
         opens: "ARRL"
         note: "The ARRL’s online courses, including Basic and Intermediate EmComm."
-      - title: "A guide to Anderson Powerpoles"
-        url: "https://www.arrl.org/files/file/Public%20Service/TrainingModules/Technical/Anderson%20powerpole.pdf"
-        opens: "ARRL"
-        note: "How to make your own DC power connections (PDF)."
 
   - id: "forms"
     title: "Forms and field guides"
@@ -92,24 +104,8 @@ groups:
         opens: "Spokane County"
         note: "The county form for ACS volunteers (choose Auxiliary Communication Services)."
 
-  - id: "licensing"
-    title: "Getting licensed"
-    links:
-      - title: "HamStudy"
-        url: "https://hamstudy.org/"
-        opens: "hamstudy.org"
-        note: "Free practice for the license exams, with the real question pools."
-      - title: "ARRL exam session search"
-        url: "https://www.arrl.org/find-an-amateur-radio-license-exam-session"
-        opens: "ARRL"
-        note: "Find an exam session near you, in person or online."
-      - title: "FCC Registration Number (FRN)"
-        url: "https://www.fcc.gov/wireless/support/universal-licensing-system-uls-resources/getting-fcc-registration-number-frn"
-        opens: "FCC"
-        note: "How to get the number the FCC asks for before your exam."
-
   - id: "section"
-    title: "ARRL and the Section"
+    title: "American Radio Relay League (ARRL)"
     links:
       - title: "ARRL Eastern Washington Section"
         url: "https://www.arrl.org/Groups/view/eastern-washington"

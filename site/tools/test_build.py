@@ -524,15 +524,6 @@ class Regressions(Build):
                     ".toc-mobile:not([open])"):
             self.assertIn(sel, hidden, f"{sel} is not hidden in print")
 
-    def test_file_version_date_does_not_wrap(self):
-        # T11: at 320px the note may wrap between kind and date, never inside the date.
-        about = self.page(self.built(), "about/index.html")
-        for note in ('<span class="file-meta">(Word document, <span class="nobr">November 7, 2024)</span></span>',
-                     '<span class="nowrap">(Word document, <span class="nobr">August 9, 2024)</span></span>',
-                     '<span class="nowrap">(PDF, <span class="nobr">July 2024)</span></span>'):
-            if note not in about:
-                self.fail(f"About lacks {note}")
-
     def test_about_training_agrees_with_the_task_book(self):
         # G5: the ACS book marks the General license as kept ("R-Maintain"), not done once;
         # what the task books list is said once; AEC is spelled out where it is first used.

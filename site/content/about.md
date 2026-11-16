@@ -1,11 +1,10 @@
 ---
 title: "About ARES & ACS"
-description: "What ARES and ACS are, the legal basis, who we serve, leadership, how to join, task books, licensing and history."
+description: "What ARES and ACS are, who we serve, licensing, how to join, task books, leadership and history."
 layout: "about"
 lede: "The details behind the team, for prospective members and partner agencies."
 # Shorter names for some chapters in the "On this page" list (key: heading id).
 toc_labels:
-  legal-basis: "Legal basis"
   leadership: "Leadership"
   history: "History"
 ---
@@ -13,12 +12,6 @@ toc_labels:
 ## ARES and ACS {#ares-acs}
 
 {{< about-ares-acs >}}
-{{< /chapter >}}
-
-{{< chapter >}}
-## The legal basis, in plain English {#legal-basis}
-
-{{< about-legal-basis >}}
 {{< /chapter >}}
 
 {{< chapter >}}
@@ -40,17 +33,20 @@ An agency that needs radio support asks Spokane County Emergency Management, whi
 {{< /chapter >}}
 
 {{< chapter >}}
-## Organization and leadership {#leadership}
+## Getting licensed {#licensing}
 
-{{< about-chains >}}
+The Technician exam works like a driver’s written test, except every question in the pool is published in advance.
 
-{{< leadership >}}
+{{< about-licensing >}}
+
+- **Bring:** photo ID, your [FCC Registration Number](/resources/#licensing) (FRN, get it before exam day), and your license if upgrading.
+- **Before you’re licensed:** [listen](/how-it-works/#nets), [visit](/#visit), or take [SKYWARN training](/resources/#weather).
 {{< /chapter >}}
 
 {{< chapter >}}
 ## Joining {#membership}
 
-- Members use their own radios, any brand. You need nothing to visit.
+- Members use their own radios, any brand. There is no equipment needed to visit.
 
 ### ARES {#ares-path}
 
@@ -82,9 +78,12 @@ Higher levels keep up the New Member requirements. Encouraged: weekly check-ins,
 [FEMA courses, free online](/resources/#training) {{< file-link "acs-task-book" >}}
 {.linkrow}
 
-### ARRL ARES levels {#arrl-task-book}
+### ARRL ARES task book {#arrl-task-book}
 
 {{< about-arrl-levels >}}
+
+The table lists required items only; the task book also lists encouraged and optional ones.
+{.note}
 
 {{< file-link "arrl-ares-task-book" >}}
 {.linkrow}
@@ -96,14 +95,11 @@ Higher levels keep up the New Member requirements. Encouraged: weekly check-ins,
 {{< /chapter >}}
 
 {{< chapter >}}
-## Getting licensed {#licensing}
+## Organization and leadership {#leadership}
 
-The Technician exam works like a driver’s written test, except every question in the pool is published in advance.
+{{< about-chains >}}
 
-{{< about-licensing >}}
-
-- **Bring:** photo ID, your [FCC Registration Number](/resources/#licensing) (FRN, get it before exam day), and your license if upgrading.
-- **Before you’re licensed:** [listen](/how-it-works/#nets), [visit](/#visit), or take [SKYWARN training](/resources/#weather).
+{{< leadership >}}
 {{< /chapter >}}
 
 {{< chapter >}}
@@ -115,8 +111,6 @@ Our call sign honors Ira “Dean” Bula, W7GBU. For years he handed out technic
 
 > “He was a person who made a difference in Spokane by making others feel like they could make a difference themselves.”
 {.wp-block-quote .pullquote}
-
-{{< about-timeline >}}
 {{< /chapter >}}
 
 {{< chapter >}}
